@@ -2,7 +2,7 @@ use crate::board::{
     components::{Column, Row, Square},
     constants::{COLUMNS, ROWS, SQUARES},
 };
-use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign};
+use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct BitMap(u64);
@@ -10,6 +10,7 @@ impl BitMap {
     pub const fn new(value: u64) -> Self {
         Self(value)
     }
+
     pub const fn is_empty(&self) -> bool {
         self.0 == 0
     }
@@ -47,6 +48,13 @@ impl BitOr for BitMap {
     }
 }
 
+impl BitXor for BitMap {
+    type Output = Self;
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        Self(self.0 ^ rhs.0)
+    }
+}
+
 impl BitAndAssign for BitMap {
     fn bitand_assign(&mut self, rhs: Self) {
         *self = Self(self.0 & rhs.0)
@@ -56,5 +64,18 @@ impl BitAndAssign for BitMap {
 impl BitOrAssign for BitMap {
     fn bitor_assign(&mut self, rhs: Self) {
         *self = Self(self.0 | rhs.0)
+    }
+}
+
+impl BitXorAssign for BitMap {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        *self = Self(self.0 ^ rhs.0)
+    }
+}
+
+impl Not for BitMap {
+    type Output = Self;
+    fn not(self) -> Self::Output {
+        Self(!self.0)
     }
 }
