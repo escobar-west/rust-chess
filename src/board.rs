@@ -1,28 +1,38 @@
-mod bitmap;
+mod bitboard;
 mod components;
-mod constants;
 mod mailbox;
+
 use crate::pieces::{Color, Figure, Piece};
-use bitmap::BitMap;
-use components::{Column, Row, Square};
+use bitboard::{BitBoard, KING_MOVES, KNIGHT_MOVES};
+pub use components::{Column, Row, Square};
 use mailbox::MailBox;
 
-#[derive(Default)]
+#[derive(Debug, Default, PartialEq, Eq)]
 pub struct Board {
-    pawns: BitMap,
-    rooks: BitMap,
-    knights: BitMap,
-    bishops: BitMap,
-    queens: BitMap,
-    kings: BitMap,
-    white: BitMap,
-    black: BitMap,
-    occupied: BitMap,
+    pawns: BitBoard,
+    rooks: BitBoard,
+    knights: BitBoard,
+    bishops: BitBoard,
+    queens: BitBoard,
+    kings: BitBoard,
+    white: BitBoard,
+    black: BitBoard,
+    occupied: BitBoard,
     mailbox: MailBox,
 }
 
 impl Board {
-    fn get_piece_map(&mut self, figure: Figure) -> &mut BitMap {
+    fn get_piece_map(&self, figure: Figure) -> BitBoard {
+        match figure {
+            Figure::Pawn => self.pawns,
+            Figure::Rook => self.rooks,
+            Figure::Knight => self.knights,
+            Figure::Bishop => self.bishops,
+            Figure::Queen => self.queens,
+            Figure::King => self.kings,
+        }
+    }
+    fn get_piece_map_mut(&mut self, figure: Figure) -> &mut BitBoard {
         match figure {
             Figure::Pawn => &mut self.pawns,
             Figure::Rook => &mut self.rooks,
@@ -33,58 +43,85 @@ impl Board {
         }
     }
 
-    fn get_color_map(&mut self, color: Color) -> &mut BitMap {
+    fn get_color_map(&self, color: Color) -> BitBoard {
+        match color {
+            Color::White => self.white,
+            Color::Black => self.black,
+        }
+    }
+
+    fn get_color_map_mut(&mut self, color: Color) -> &mut BitBoard {
         match color {
             Color::White => &mut self.white,
             Color::Black => &mut self.black,
         }
     }
 
-    fn clear_mask_by_piece(&mut self, mask: BitMap, piece: Piece) {
+    fn clear_mask_by_piece(&mut self, mask: BitBoard, piece: Piece) {
         let clear_mask = !mask;
-        *self.get_piece_map(piece.figure) &= clear_mask;
-        *self.get_color_map(piece.color) &= clear_mask;
+        *self.get_piece_map_mut(piece.figure) &= clear_mask;
+        *self.get_color_map_mut(piece.color) &= clear_mask;
         self.occupied &= clear_mask;
     }
 
-    fn set_mask_by_piece(&mut self, mask: BitMap, piece: Piece) {
-        *self.get_piece_map(piece.figure) |= mask;
-        *self.get_color_map(piece.color) |= mask;
+    fn set_mask_by_piece(&mut self, mask: BitBoard, piece: Piece) {
+        *self.get_piece_map_mut(piece.figure) |= mask;
+        *self.get_color_map_mut(piece.color) |= mask;
         self.occupied |= mask;
     }
 
-    pub fn get_square(&self, square: Square) -> Option<Piece> {
-        self.mailbox.get_square(square)
+    pub fn get_piece_at_square(&self, square: Square) -> Option<Piece> {
+        self.mailbox.get_piece_at_square(square)
     }
 
     pub fn clear_square(&mut self, square: Square) -> Option<Piece> {
-        let piece = self.mailbox.clear_square(square);
-        piece.map(|p| self.clear_mask_by_piece(square.into(), p));
-        piece
+        let old_piece = self.mailbox.clear_square(square);
+        old_piece.map(|p| self.clear_mask_by_piece(square.into(), p));
+        old_piece
     }
 
-    pub fn set_square(&mut self, square: Square, piece: Piece) -> Option<Piece> {
-        let old_piece = self.mailbox.set_square(square, piece);
-        if old_piece == Some(piece) {
-            return old_piece;
-        }
-        let square_mask: BitMap = square.into();
+    pub fn set_piece_at_square(&mut self, square: Square, piece: Piece) -> Option<Piece> {
+        let old_piece = self.mailbox.set_piece_at_square(square, piece);
+        let square_mask: BitBoard = square.into();
         old_piece.map(|old_p| self.clear_mask_by_piece(square_mask, old_p));
         self.set_mask_by_piece(square_mask, piece);
         old_piece
     }
 
     pub fn move_piece(&mut self, from: Square, to: Square) -> Option<Piece> {
-        if from == to {
-            return None;
-        }
         self.clear_square(from)
-            .map(|p| self.set_square(to, p))
+            .map(|p| self.set_piece_at_square(to, p))
             .flatten()
     }
 
+    pub fn get_legal_moves_at_square(&self, square: Square) -> BitBoard {
+        let piece = match self.get_piece_at_square(square) {
+            Some(p) => p,
+            None => return BitBoard::new(0),
+        };
+        match piece.figure {
+            Figure::Knight => {
+                let knight_moves = Board::get_knight_moves_at_square(square);
+                knight_moves & !self.get_color_map(piece.color)
+            }
+            Figure::King => {
+                let king_moves = Board::get_king_moves_at_square(square);
+                king_moves & !self.get_color_map(piece.color)
+            }
+            _ => BitBoard::new(0),
+        }
+    }
+
+    pub fn get_knight_moves_at_square(square: Square) -> BitBoard {
+        KNIGHT_MOVES[usize::from(square)]
+    }
+
+    pub fn get_king_moves_at_square(square: Square) -> BitBoard {
+        KING_MOVES[usize::from(square)]
+    }
+
     pub fn try_from_fen(fen: &str) -> Result<Self, &'static str> {
-        let position = fen.split_whitespace().next().ok_or("Empty Fen")?;
+        let position = fen.split(" ").next().ok_or("Empty Fen")?;
         let fen_positions: Vec<&str> = position.split("/").collect();
         if fen_positions.len() != 8 {
             return Err("Invalid number of rows");
@@ -98,8 +135,8 @@ impl Board {
                     col_idx += c.to_digit(10).unwrap() as u8;
                 } else {
                     let piece = Piece::try_from(c)?;
-                    let square = Square::new(Row(row_idx), Column(col_idx));
-                    board.set_square(square, piece);
+                    let square = Square::from_coords(Row::new(row_idx), Column::new(col_idx));
+                    board.set_piece_at_square(square, piece);
                     col_idx += 1;
                 }
             }
@@ -113,8 +150,8 @@ impl Board {
             let mut none_count = 0u8;
             let mut fen_row: String = "".into();
             for col_idx in 0..8u8 {
-                let square = Square::new(Row(row_idx), Column(col_idx));
-                match self.mailbox.get_square(square) {
+                let square = Square::from_coords(Row::new(row_idx), Column::new(col_idx));
+                match self.mailbox.get_piece_at_square(square) {
                     Some(p) => {
                         if none_count != 0 {
                             fen_row.push_str(&format!("{}", none_count));
@@ -145,37 +182,37 @@ mod tests {
         let fen = DEFAULT_FEN;
         let board = Board::try_from_fen(fen).unwrap();
 
-        let pawn_mask = BitMap::from(Row(1)) | BitMap::from(Row(6));
+        let pawn_mask = BitBoard::from(Row::new(1)) | BitBoard::from(Row::new(6));
         assert_eq!(board.pawns, pawn_mask);
 
-        let rook_mask = BitMap::from(Square(0))
-            | BitMap::from(Square(7))
-            | BitMap::from(Square(56))
-            | BitMap::from(Square(63));
+        let rook_mask = BitBoard::from(Square::new(0))
+            | BitBoard::from(Square::new(7))
+            | BitBoard::from(Square::new(56))
+            | BitBoard::from(Square::new(63));
         assert_eq!(board.rooks, rook_mask);
 
-        let knight_mask = BitMap::from(Square(1))
-            | BitMap::from(Square(6))
-            | BitMap::from(Square(57))
-            | BitMap::from(Square(62));
+        let knight_mask = BitBoard::from(Square::new(1))
+            | BitBoard::from(Square::new(6))
+            | BitBoard::from(Square::new(57))
+            | BitBoard::from(Square::new(62));
         assert_eq!(board.knights, knight_mask);
 
-        let bishop_mask = BitMap::from(Square(2))
-            | BitMap::from(Square(5))
-            | BitMap::from(Square(58))
-            | BitMap::from(Square(61));
+        let bishop_mask = BitBoard::from(Square::new(2))
+            | BitBoard::from(Square::new(5))
+            | BitBoard::from(Square::new(58))
+            | BitBoard::from(Square::new(61));
         assert_eq!(board.bishops, bishop_mask);
 
-        let queen_mask = BitMap::from(Square(3)) | BitMap::from(Square(59));
+        let queen_mask = BitBoard::from(Square::new(3)) | BitBoard::from(Square::new(59));
         assert_eq!(board.queens, queen_mask);
 
-        let king_mask = BitMap::from(Square(4)) | BitMap::from(Square(60));
+        let king_mask = BitBoard::from(Square::new(4)) | BitBoard::from(Square::new(60));
         assert_eq!(board.kings, king_mask);
 
-        let white_mask = BitMap::from(Row(0)) | BitMap::from(Row(1));
+        let white_mask = BitBoard::from(Row::new(0)) | BitBoard::from(Row::new(1));
         assert_eq!(board.white, white_mask);
 
-        let black_mask = BitMap::from(Row(6)) | BitMap::from(Row(7));
+        let black_mask = BitBoard::from(Row::new(6)) | BitBoard::from(Row::new(7));
         assert_eq!(board.black, black_mask);
 
         let occ_mask = white_mask | black_mask;
@@ -186,17 +223,18 @@ mod tests {
     }
 
     #[test]
-    fn test_clear_and_set_square() {
+    fn test_clear_and_set_piece_at_square() {
         let fen = DEFAULT_FEN;
         let mut board = Board::try_from_fen(fen).unwrap();
-        board.clear_square(Square(56));
+        board.clear_square(Square::new(56));
 
-        let rook_mask =
-            BitMap::from(Square(0)) | BitMap::from(Square(7)) | BitMap::from(Square(63));
+        let rook_mask = BitBoard::from(Square::new(0))
+            | BitBoard::from(Square::new(7))
+            | BitBoard::from(Square::new(63));
         assert_eq!(board.rooks, rook_mask);
 
-        let piece = board.set_square(
-            Square(7),
+        let piece = board.set_piece_at_square(
+            Square::new(7),
             Piece {
                 color: Color::Black,
                 figure: Figure::Queen,
@@ -210,18 +248,22 @@ mod tests {
             })
         );
 
-        let rook_mask = BitMap::from(Square(0)) | BitMap::from(Square(63));
+        let rook_mask = BitBoard::from(Square::new(0)) | BitBoard::from(Square::new(63));
         assert_eq!(board.rooks, rook_mask);
 
-        let queen_mask =
-            BitMap::from(Square(3)) | BitMap::from(Square(7)) | BitMap::from(Square(59));
+        let queen_mask = BitBoard::from(Square::new(3))
+            | BitBoard::from(Square::new(7))
+            | BitBoard::from(Square::new(59));
         assert_eq!(board.queens, queen_mask);
 
-        let white_mask = (BitMap::from(Row(0)) | BitMap::from(Row(1))) ^ BitMap::from(Square(7));
+        let white_mask = (BitBoard::from(Row::new(0)) | BitBoard::from(Row::new(1)))
+            ^ BitBoard::from(Square::new(7));
         assert_eq!(board.white, white_mask);
 
-        let black_mask = (BitMap::from(Row(6)) | BitMap::from(Row(7)) | BitMap::from(Square(7)))
-            ^ BitMap::from(Square(56));
+        let black_mask = (BitBoard::from(Row::new(6))
+            | BitBoard::from(Row::new(7))
+            | BitBoard::from(Square::new(7)))
+            ^ BitBoard::from(Square::new(56));
         assert_eq!(board.black, black_mask);
     }
 
@@ -229,13 +271,13 @@ mod tests {
     fn test_move_piece() {
         let fen = DEFAULT_FEN;
         let mut board = Board::try_from_fen(fen).unwrap();
-        board.move_piece(Square(12), Square(28));
+        board.move_piece(Square::new(12), Square::new(28));
         let new_fen = board.to_fen();
         assert_eq!(new_fen, "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR");
-        board.move_piece(Square(50), Square(34));
+        board.move_piece(Square::new(50), Square::new(34));
         let new_fen = board.to_fen();
         assert_eq!(new_fen, "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR");
-        board.move_piece(Square(0), Square(63));
+        board.move_piece(Square::new(0), Square::new(63));
         let new_fen = board.to_fen();
         assert_eq!(new_fen, "rnbqkbnR/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/1NBQKBNR");
     }

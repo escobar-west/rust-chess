@@ -1,3 +1,4 @@
+use std::ops::Not;
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Color {
     White,
@@ -90,6 +91,16 @@ impl TryFrom<char> for Piece {
                 figure: Figure::King,
             }),
             _ => Err("Invalid char"),
+        }
+    }
+}
+
+impl Not for Color {
+    type Output = Self;
+    fn not(self) -> Self::Output {
+        match self {
+            Self::White => Self::Black,
+            Self::Black => Self::White,
         }
     }
 }
