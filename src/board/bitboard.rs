@@ -1,11 +1,15 @@
 mod constants;
+use super::Square;
 pub use constants::*;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Shl, Shr};
 
-const NOT_A_FILE: u64 = 0xfefefefefefefefe;
-const NOT_AB_FILE: u64 = 0xfcfcfcfcfcfcfcfc;
-const NOT_H_FILE: u64 = 0x7f7f7f7f7f7f7f7f;
-const NOT_GH_FILE: u64 = 0x3f3f3f3f3f3f3f3f;
+#[repr(usize)]
+pub enum Direction {
+    East = 0,
+    North,
+    West,
+    South,
+}
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct BitBoard(u64);
@@ -19,7 +23,92 @@ impl BitBoard {
         self.0 == 0
     }
 
-    pub const fn knight_moves(self) -> Self {
+    pub fn bitscan_forward(&self) -> Square {
+        let self_inner: u64 = self.0;
+        assert!(self_inner != 0);
+        let lookup_idx = DEBRUIJN64.wrapping_mul(self_inner & self_inner.wrapping_neg()) >> 58;
+        Square::new(FWDSCAN[lookup_idx as usize])
+    }
+
+    pub fn biscan_backward(&self) -> Square {
+        let mut self_inner: u64 = self.0;
+        assert!(self_inner != 0);
+        self_inner |= self_inner >> 1;
+        self_inner |= self_inner >> 2;
+        self_inner |= self_inner >> 4;
+        self_inner |= self_inner >> 8;
+        self_inner |= self_inner >> 16;
+        self_inner |= self_inner >> 32;
+        let lookup_idx = self_inner.wrapping_mul(DEBRUIJN64) >> 58;
+        Square::new(BACKSCAN[lookup_idx as usize])
+    }
+
+    const fn gen_square_mask(square: u64) -> Self {
+        Self(1 << square)
+    }
+
+    const fn gen_row_mask(row: u8) -> Self {
+        Self(0xff << 8 * row)
+    }
+
+    const fn gen_col_mask(col: u8) -> Self {
+        Self(0x0101010101010101 << col)
+    }
+
+    //TODO: fix east and west generation, which is not correct
+    const fn gen_east_mask(self) -> Self {
+        let self_inner = self.0;
+        let mut mask: u64 = 0;
+        mask |= (Self::gen_col_mask(0).0 & self_inner) << 1;
+        mask |= (Self::gen_col_mask(1).0 & self_inner) << 1;
+        mask |= (Self::gen_col_mask(2).0 & self_inner) << 1;
+        mask |= (Self::gen_col_mask(3).0 & self_inner) << 1;
+        mask |= (Self::gen_col_mask(4).0 & self_inner) << 1;
+        mask |= (Self::gen_col_mask(5).0 & self_inner) << 1;
+        mask |= (Self::gen_col_mask(6).0 & self_inner) << 1;
+        Self(mask)
+    }
+
+    const fn gen_north_mask(self) -> Self {
+        let self_inner = self.0;
+        let mut mask: u64 = 0;
+        mask |= self_inner << 8 * 1;
+        mask |= self_inner << 8 * 2;
+        mask |= self_inner << 8 * 3;
+        mask |= self_inner << 8 * 4;
+        mask |= self_inner << 8 * 5;
+        mask |= self_inner << 8 * 6;
+        mask |= self_inner << 8 * 7;
+        Self(mask)
+    }
+
+    const fn gen_west_mask(self) -> Self {
+        let self_inner = self.0;
+        let mut mask: u64 = 0;
+        mask |= (Self::gen_col_mask(7).0 & self_inner) >> 1;
+        mask |= (Self::gen_col_mask(6).0 & self_inner) >> 1;
+        mask |= (Self::gen_col_mask(5).0 & self_inner) >> 1;
+        mask |= (Self::gen_col_mask(4).0 & self_inner) >> 1;
+        mask |= (Self::gen_col_mask(3).0 & self_inner) >> 1;
+        mask |= (Self::gen_col_mask(2).0 & self_inner) >> 1;
+        mask |= (Self::gen_col_mask(1).0 & self_inner) >> 1;
+        Self(mask)
+    }
+
+    const fn gen_south_mask(self) -> Self {
+        let self_inner = self.0;
+        let mut mask: u64 = 0;
+        mask |= self_inner >> 8 * 1;
+        mask |= self_inner >> 8 * 2;
+        mask |= self_inner >> 8 * 3;
+        mask |= self_inner >> 8 * 4;
+        mask |= self_inner >> 8 * 5;
+        mask |= self_inner >> 8 * 6;
+        mask |= self_inner >> 8 * 7;
+        Self(mask)
+    }
+
+    const fn gen_knight_mask(self) -> Self {
         let self_inner: u64 = self.0;
         Self(
             ((self_inner << 17) & NOT_A_FILE)
@@ -33,7 +122,7 @@ impl BitBoard {
         )
     }
 
-    pub const fn king_moves(self) -> Self {
+    const fn gen_king_mask(self) -> Self {
         let self_inner: u64 = self.0;
         let lateral_mask = ((self_inner << 1) & NOT_A_FILE) | ((self_inner >> 1) & NOT_H_FILE);
         let screen_mask = lateral_mask | self_inner;
@@ -104,14 +193,14 @@ impl Shr<u8> for BitBoard {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::board::Square;
+    use crate::board::{Column, Row};
     #[test]
     fn test_knight_moves() {
-        let knight_moves = BitBoard::from(Square::new(0)).knight_moves();
+        let knight_moves = BitBoard::from(Square::new(0)).gen_knight_mask();
         let expected = BitBoard::from(Square::new(10)) | BitBoard::from(Square::new(17));
         assert_eq!(knight_moves, expected);
 
-        let knight_moves = BitBoard::from(Square::new(45)).knight_moves();
+        let knight_moves = BitBoard::from(Square::new(45)).gen_knight_mask();
         let expected = BitBoard::from(Square::new(28))
             | BitBoard::from(Square::new(30))
             | BitBoard::from(Square::new(35))
@@ -125,13 +214,13 @@ mod tests {
 
     #[test]
     fn test_king_moves() {
-        let knight_moves = BitBoard::from(Square::new(0)).king_moves();
+        let knight_moves = BitBoard::from(Square::new(0)).gen_king_mask();
         let expected = BitBoard::from(Square::new(1))
             | BitBoard::from(Square::new(8))
             | BitBoard::from(Square::new(9));
         assert_eq!(knight_moves, expected);
 
-        let knight_moves = BitBoard::from(Square::new(54)).king_moves();
+        let knight_moves = BitBoard::from(Square::new(54)).gen_king_mask();
         let expected = BitBoard::from(Square::new(45))
             | BitBoard::from(Square::new(46))
             | BitBoard::from(Square::new(47))
@@ -141,5 +230,67 @@ mod tests {
             | BitBoard::from(Square::new(62))
             | BitBoard::from(Square::new(63));
         assert_eq!(knight_moves, expected);
+    }
+
+    #[test]
+    fn test_forward_bitscan() {
+        let bitboard = BitBoard::from(Row::new(0));
+        let lsb = bitboard.bitscan_forward();
+        assert_eq!(lsb, Square::new(0));
+
+        let bitboard = BitBoard::from(Row::new(7));
+        let lsb = bitboard.bitscan_forward();
+        assert_eq!(lsb, Square::new(56));
+
+        let bitboard = BitBoard::from(Column::new(0));
+        let lsb = bitboard.bitscan_forward();
+        assert_eq!(lsb, Square::new(0));
+
+        let bitboard = BitBoard::from(Column::new(7));
+        let lsb = bitboard.bitscan_forward();
+        assert_eq!(lsb, Square::new(7));
+
+        let bitboard = BitBoard::from(Square::new(0));
+        let lsb = bitboard.bitscan_forward();
+        assert_eq!(lsb, Square::new(0));
+
+        let bitboard = BitBoard::from(Square::new(63));
+        let lsb = bitboard.bitscan_forward();
+        assert_eq!(lsb, Square::new(63));
+
+        let bitboard = BitBoard::new(u64::MAX);
+        let lsb = bitboard.bitscan_forward();
+        assert_eq!(lsb, Square::new(0));
+    }
+
+    #[test]
+    fn test_backward_bitscan() {
+        let bitboard = BitBoard::from(Row::new(0));
+        let lsb = bitboard.biscan_backward();
+        assert_eq!(lsb, Square::new(7));
+
+        let bitboard = BitBoard::from(Row::new(7));
+        let lsb = bitboard.biscan_backward();
+        assert_eq!(lsb, Square::new(63));
+
+        let bitboard = BitBoard::from(Column::new(0));
+        let lsb = bitboard.biscan_backward();
+        assert_eq!(lsb, Square::new(56));
+
+        let bitboard = BitBoard::from(Column::new(7));
+        let lsb = bitboard.biscan_backward();
+        assert_eq!(lsb, Square::new(63));
+
+        let bitboard = BitBoard::from(Square::new(0));
+        let lsb = bitboard.biscan_backward();
+        assert_eq!(lsb, Square::new(0));
+
+        let bitboard = BitBoard::from(Square::new(63));
+        let lsb = bitboard.biscan_backward();
+        assert_eq!(lsb, Square::new(63));
+
+        let bitboard = BitBoard::new(u64::MAX);
+        let lsb = bitboard.biscan_backward();
+        assert_eq!(lsb, Square::new(63));
     }
 }

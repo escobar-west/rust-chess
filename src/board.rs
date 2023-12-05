@@ -99,24 +99,24 @@ impl Board {
             Some(p) => p,
             None => return BitBoard::new(0),
         };
-        match piece.figure {
-            Figure::Knight => {
-                let knight_moves = Board::get_knight_moves_at_square(square);
-                knight_moves & !self.get_color_map(piece.color)
-            }
-            Figure::King => {
-                let king_moves = Board::get_king_moves_at_square(square);
-                king_moves & !self.get_color_map(piece.color)
-            }
+        let move_mask = match piece.figure {
+            Figure::Rook => self.get_rook_moves(square),
+            Figure::Knight => self.get_knight_moves(square),
+            Figure::King => self.get_king_moves(square),
             _ => BitBoard::new(0),
-        }
+        };
+        move_mask & !self.get_color_map(piece.color)
     }
 
-    pub fn get_knight_moves_at_square(square: Square) -> BitBoard {
+    pub fn get_rook_moves(&self, square: Square) -> BitBoard {
+        BitBoard::new(0)
+    }
+
+    pub fn get_knight_moves(&self, square: Square) -> BitBoard {
         KNIGHT_MOVES[usize::from(square)]
     }
 
-    pub fn get_king_moves_at_square(square: Square) -> BitBoard {
+    pub fn get_king_moves(&self, square: Square) -> BitBoard {
         KING_MOVES[usize::from(square)]
     }
 

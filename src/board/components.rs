@@ -41,6 +41,12 @@ impl From<Square> for BitBoard {
     }
 }
 
+impl From<Square> for u8 {
+    fn from(value: Square) -> Self {
+        value.0
+    }
+}
+
 impl From<Square> for usize {
     fn from(value: Square) -> Self {
         value.0 as usize
@@ -48,12 +54,12 @@ impl From<Square> for usize {
 }
 
 impl Square {
-    pub fn new(value: u8) -> Self {
+    pub const fn new(value: u8) -> Self {
         assert!(value & 63 == value);
         Self(value)
     }
 
-    pub fn from_coords(row: Row, col: Column) -> Self {
+    pub const fn from_coords(row: Row, col: Column) -> Self {
         Self(col.0 + 8 * row.0)
     }
 
