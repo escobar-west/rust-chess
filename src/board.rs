@@ -3,7 +3,7 @@ mod components;
 mod mailbox;
 
 use crate::pieces::{Color, Figure, Piece};
-use bitboard::{BitBoard, KING_MOVES, KNIGHT_MOVES};
+use bitboard::{BitBoard, Direction, KING_MOVES, KNIGHT_MOVES, STRAIGHT_MOVES};
 pub use components::{Column, Row, Square};
 use mailbox::MailBox;
 
@@ -109,6 +109,8 @@ impl Board {
     }
 
     pub fn get_rook_moves(&self, square: Square) -> BitBoard {
+        let direction_moves = STRAIGHT_MOVES[usize::from(square)];
+        for p_dir in [Direction::East, Direction::North] {}
         BitBoard::new(0)
     }
 
@@ -128,7 +130,6 @@ impl Board {
         }
         let mut board = Self::default();
         for (row_idx, fen_row) in (0..8u8).rev().zip(fen_positions.iter()) {
-            println!("{:#?}, {:#?}", row_idx, fen_row);
             let mut col_idx = 0u8;
             for c in fen_row.chars() {
                 if c.is_digit(10) {

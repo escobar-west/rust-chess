@@ -1,4 +1,4 @@
-use crate::board::bitboard::{BitBoard, COLUMNS, ROWS, SQUARES};
+use super::bitboard::{BitBoard, COLUMNS, ROWS, SQUARES};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Row(u8);

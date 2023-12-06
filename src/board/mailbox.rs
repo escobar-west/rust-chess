@@ -1,4 +1,5 @@
-use crate::{board::components::Square, pieces::Piece};
+use super::Square;
+use crate::pieces::Piece;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct MailBox(Box<[Option<Piece>; 64]>);

@@ -1,13 +1,15 @@
 use std::ops::Not;
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(u8)]
 pub enum Color {
-    White,
+    White = 0,
     Black,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(u8)]
 pub enum Figure {
-    Pawn,
+    Pawn = 0,
     Rook,
     Knight,
     Bishop,

@@ -1,6 +1,8 @@
 mod constants;
+mod iters;
 use super::Square;
 pub use constants::*;
+use iters::BitBoardFwdIter;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Shl, Shr};
 
 #[repr(usize)]
@@ -23,16 +25,39 @@ impl BitBoard {
         self.0 == 0
     }
 
-    pub fn bitscan_forward(&self) -> Square {
-        let self_inner: u64 = self.0;
-        assert!(self_inner != 0);
-        let lookup_idx = DEBRUIJN64.wrapping_mul(self_inner & self_inner.wrapping_neg()) >> 58;
-        Square::new(FWDSCAN[lookup_idx as usize])
+    fn print_board(&self) {
+        let mut char_board: [char; 64] = ['.'; 64];
+        for square in self.iter_forward() {
+            char_board[usize::from(square)] = 'X';
+        }
+        let mut out_str = String::new();
+        for i in (0..8).rev() {
+            let offset = 8 * i as usize;
+            let row: String = char_board[offset..offset + 8].iter().collect();
+            out_str.push_str(&row);
+            out_str.push('\n')
+        }
+        println!("{}", out_str);
     }
 
-    pub fn biscan_backward(&self) -> Square {
+    pub fn iter_forward(&self) -> BitBoardFwdIter<'_> {
+        BitBoardFwdIter::new(self)
+    }
+
+    pub fn bitscan_forward(&self) -> Option<Square> {
+        let self_inner: u64 = self.0;
+        if self_inner == 0 {
+            return None;
+        }
+        let lookup_idx = DEBRUIJN64.wrapping_mul(self_inner & self_inner.wrapping_neg()) >> 58;
+        Some(Square::new(FWDSCAN[lookup_idx as usize]))
+    }
+
+    pub fn bitscan_backward(&self) -> Option<Square> {
         let mut self_inner: u64 = self.0;
-        assert!(self_inner != 0);
+        if self_inner == 0 {
+            return None;
+        }
         self_inner |= self_inner >> 1;
         self_inner |= self_inner >> 2;
         self_inner |= self_inner >> 4;
@@ -40,7 +65,7 @@ impl BitBoard {
         self_inner |= self_inner >> 16;
         self_inner |= self_inner >> 32;
         let lookup_idx = self_inner.wrapping_mul(DEBRUIJN64) >> 58;
-        Square::new(BACKSCAN[lookup_idx as usize])
+        Some(Square::new(BACKSCAN[lookup_idx as usize]))
     }
 
     const fn gen_square_mask(square: u64) -> Self {
@@ -55,56 +80,47 @@ impl BitBoard {
         Self(0x0101010101010101 << col)
     }
 
-    //TODO: fix east and west generation, which is not correct
     const fn gen_east_mask(self) -> Self {
         let self_inner = self.0;
-        let mut mask: u64 = 0;
-        mask |= (Self::gen_col_mask(0).0 & self_inner) << 1;
-        mask |= (Self::gen_col_mask(1).0 & self_inner) << 1;
-        mask |= (Self::gen_col_mask(2).0 & self_inner) << 1;
-        mask |= (Self::gen_col_mask(3).0 & self_inner) << 1;
-        mask |= (Self::gen_col_mask(4).0 & self_inner) << 1;
-        mask |= (Self::gen_col_mask(5).0 & self_inner) << 1;
-        mask |= (Self::gen_col_mask(6).0 & self_inner) << 1;
+        let mut mask: u64 = (self_inner << 1) & NOT_A_FILE;
+        let mut counter: u8 = 2;
+        while counter < 8 {
+            mask |= (mask << 1) & NOT_A_FILE;
+            counter += 1;
+        }
         Self(mask)
     }
 
     const fn gen_north_mask(self) -> Self {
         let self_inner = self.0;
-        let mut mask: u64 = 0;
-        mask |= self_inner << 8 * 1;
-        mask |= self_inner << 8 * 2;
-        mask |= self_inner << 8 * 3;
-        mask |= self_inner << 8 * 4;
-        mask |= self_inner << 8 * 5;
-        mask |= self_inner << 8 * 6;
-        mask |= self_inner << 8 * 7;
+        let mut mask: u64 = self_inner << 8;
+        let mut counter: u8 = 2;
+        while counter < 8 {
+            mask |= mask << 8;
+            counter += 1;
+        }
         Self(mask)
     }
 
     const fn gen_west_mask(self) -> Self {
         let self_inner = self.0;
-        let mut mask: u64 = 0;
-        mask |= (Self::gen_col_mask(7).0 & self_inner) >> 1;
-        mask |= (Self::gen_col_mask(6).0 & self_inner) >> 1;
-        mask |= (Self::gen_col_mask(5).0 & self_inner) >> 1;
-        mask |= (Self::gen_col_mask(4).0 & self_inner) >> 1;
-        mask |= (Self::gen_col_mask(3).0 & self_inner) >> 1;
-        mask |= (Self::gen_col_mask(2).0 & self_inner) >> 1;
-        mask |= (Self::gen_col_mask(1).0 & self_inner) >> 1;
+        let mut mask: u64 = (self_inner >> 1) & NOT_H_FILE;
+        let mut counter: u8 = 2;
+        while counter < 8 {
+            mask |= (mask >> 1) & NOT_H_FILE;
+            counter += 1;
+        }
         Self(mask)
     }
 
     const fn gen_south_mask(self) -> Self {
         let self_inner = self.0;
-        let mut mask: u64 = 0;
-        mask |= self_inner >> 8 * 1;
-        mask |= self_inner >> 8 * 2;
-        mask |= self_inner >> 8 * 3;
-        mask |= self_inner >> 8 * 4;
-        mask |= self_inner >> 8 * 5;
-        mask |= self_inner >> 8 * 6;
-        mask |= self_inner >> 8 * 7;
+        let mut mask: u64 = self_inner >> 8;
+        let mut counter: u8 = 2;
+        while counter < 8 {
+            mask |= mask >> 8;
+            counter += 1;
+        }
         Self(mask)
     }
 
@@ -195,6 +211,29 @@ mod tests {
     use super::*;
     use crate::board::{Column, Row};
     #[test]
+    fn test_straight_moves() {
+        let east_moves = BitBoard::from(Square::new(9)).gen_east_mask();
+        let expected = BitBoard::from(Row::new(1))
+            ^ BitBoard::from(Square::new(8))
+            ^ BitBoard::from(Square::new(9));
+        assert_eq!(east_moves, expected);
+
+        let north_moves = BitBoard::from(Square::new(9)).gen_north_mask();
+        let expected = BitBoard::from(Column::new(1))
+            ^ BitBoard::from(Square::new(1))
+            ^ BitBoard::from(Square::new(9));
+        assert_eq!(north_moves, expected);
+
+        let west_moves = BitBoard::from(Square::new(9)).gen_west_mask();
+        let expected = BitBoard::from(Square::new(8));
+        assert_eq!(west_moves, expected);
+
+        let south_moves = BitBoard::from(Square::new(9)).gen_south_mask();
+        let expected = BitBoard::from(Square::new(1));
+        assert_eq!(south_moves, expected);
+    }
+
+    #[test]
     fn test_knight_moves() {
         let knight_moves = BitBoard::from(Square::new(0)).gen_knight_mask();
         let expected = BitBoard::from(Square::new(10)) | BitBoard::from(Square::new(17));
@@ -214,13 +253,13 @@ mod tests {
 
     #[test]
     fn test_king_moves() {
-        let knight_moves = BitBoard::from(Square::new(0)).gen_king_mask();
+        let king_moves = BitBoard::from(Square::new(0)).gen_king_mask();
         let expected = BitBoard::from(Square::new(1))
             | BitBoard::from(Square::new(8))
             | BitBoard::from(Square::new(9));
-        assert_eq!(knight_moves, expected);
+        assert_eq!(king_moves, expected);
 
-        let knight_moves = BitBoard::from(Square::new(54)).gen_king_mask();
+        let king_moves = BitBoard::from(Square::new(54)).gen_king_mask();
         let expected = BitBoard::from(Square::new(45))
             | BitBoard::from(Square::new(46))
             | BitBoard::from(Square::new(47))
@@ -229,68 +268,68 @@ mod tests {
             | BitBoard::from(Square::new(61))
             | BitBoard::from(Square::new(62))
             | BitBoard::from(Square::new(63));
-        assert_eq!(knight_moves, expected);
+        assert_eq!(king_moves, expected);
     }
 
     #[test]
     fn test_forward_bitscan() {
         let bitboard = BitBoard::from(Row::new(0));
-        let lsb = bitboard.bitscan_forward();
+        let lsb = bitboard.bitscan_forward().unwrap();
         assert_eq!(lsb, Square::new(0));
 
         let bitboard = BitBoard::from(Row::new(7));
-        let lsb = bitboard.bitscan_forward();
+        let lsb = bitboard.bitscan_forward().unwrap();
         assert_eq!(lsb, Square::new(56));
 
         let bitboard = BitBoard::from(Column::new(0));
-        let lsb = bitboard.bitscan_forward();
+        let lsb = bitboard.bitscan_forward().unwrap();
         assert_eq!(lsb, Square::new(0));
 
         let bitboard = BitBoard::from(Column::new(7));
-        let lsb = bitboard.bitscan_forward();
+        let lsb = bitboard.bitscan_forward().unwrap();
         assert_eq!(lsb, Square::new(7));
 
         let bitboard = BitBoard::from(Square::new(0));
-        let lsb = bitboard.bitscan_forward();
+        let lsb = bitboard.bitscan_forward().unwrap();
         assert_eq!(lsb, Square::new(0));
 
         let bitboard = BitBoard::from(Square::new(63));
-        let lsb = bitboard.bitscan_forward();
+        let lsb = bitboard.bitscan_forward().unwrap();
         assert_eq!(lsb, Square::new(63));
 
         let bitboard = BitBoard::new(u64::MAX);
-        let lsb = bitboard.bitscan_forward();
+        let lsb = bitboard.bitscan_forward().unwrap();
         assert_eq!(lsb, Square::new(0));
     }
 
     #[test]
     fn test_backward_bitscan() {
         let bitboard = BitBoard::from(Row::new(0));
-        let lsb = bitboard.biscan_backward();
+        let lsb = bitboard.bitscan_backward().unwrap();
         assert_eq!(lsb, Square::new(7));
 
         let bitboard = BitBoard::from(Row::new(7));
-        let lsb = bitboard.biscan_backward();
+        let lsb = bitboard.bitscan_backward().unwrap();
         assert_eq!(lsb, Square::new(63));
 
         let bitboard = BitBoard::from(Column::new(0));
-        let lsb = bitboard.biscan_backward();
+        let lsb = bitboard.bitscan_backward().unwrap();
         assert_eq!(lsb, Square::new(56));
 
         let bitboard = BitBoard::from(Column::new(7));
-        let lsb = bitboard.biscan_backward();
+        let lsb = bitboard.bitscan_backward().unwrap();
         assert_eq!(lsb, Square::new(63));
 
         let bitboard = BitBoard::from(Square::new(0));
-        let lsb = bitboard.biscan_backward();
+        let lsb = bitboard.bitscan_backward().unwrap();
         assert_eq!(lsb, Square::new(0));
 
         let bitboard = BitBoard::from(Square::new(63));
-        let lsb = bitboard.biscan_backward();
+        let lsb = bitboard.bitscan_backward().unwrap();
         assert_eq!(lsb, Square::new(63));
 
         let bitboard = BitBoard::new(u64::MAX);
-        let lsb = bitboard.biscan_backward();
+        let lsb = bitboard.bitscan_backward().unwrap();
         assert_eq!(lsb, Square::new(63));
     }
 }
