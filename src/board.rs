@@ -109,9 +109,25 @@ impl Board {
     }
 
     pub fn get_rook_moves(&self, square: Square) -> BitBoard {
-        let direction_moves = STRAIGHT_MOVES[usize::from(square)];
-        for p_dir in [Direction::East, Direction::North] {}
-        BitBoard::new(0)
+        let mut output_mask = BitBoard::new(0);
+        let ray_masks = STRAIGHT_MOVES[usize::from(square)];
+        for dir in [
+            Direction::East,
+            Direction::North,
+            Direction::West,
+            Direction::South,
+        ] {
+            let mut ray_mask = ray_masks[dir as usize];
+            let first_blocker = match dir {
+                Direction::East | Direction::North => (ray_mask & self.occupied).bitscan_forward(),
+                Direction::West | Direction::South => (ray_mask & self.occupied).bitscan_backward(),
+            };
+            if let Some(first_blocker) = first_blocker {
+                ray_mask ^= STRAIGHT_MOVES[usize::from(first_blocker)][dir as usize];
+            }
+            output_mask |= ray_mask;
+        }
+        output_mask
     }
 
     pub fn get_knight_moves(&self, square: Square) -> BitBoard {

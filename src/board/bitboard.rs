@@ -5,6 +5,7 @@ pub use constants::*;
 use iters::BitBoardFwdIter;
 use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Shl, Shr};
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(usize)]
 pub enum Direction {
     East = 0,
