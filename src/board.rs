@@ -298,4 +298,15 @@ mod tests {
         let new_fen = board.to_fen();
         assert_eq!(new_fen, "rnbqkbnR/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/1NBQKBNR");
     }
+
+    #[test]
+    fn test_rook_moves_on_board() {
+        let fen = DEFAULT_FEN;
+        let board = Board::try_from_fen(fen).unwrap();
+        let rook_moves = board.get_rook_moves(Square::new(0));
+        assert_eq!(
+            rook_moves,
+            BitBoard::from(Square::new(1)) | BitBoard::from(Square::new(8))
+        );
+    }
 }

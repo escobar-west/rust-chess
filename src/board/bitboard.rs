@@ -26,7 +26,7 @@ impl BitBoard {
         self.0 == 0
     }
 
-    fn print_board(&self) {
+    pub fn print_board(&self) {
         let mut char_board: [char; 64] = ['.'; 64];
         for square in self.iter_forward() {
             char_board[usize::from(square)] = 'X';
