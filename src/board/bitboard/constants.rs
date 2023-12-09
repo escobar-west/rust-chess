@@ -1,9 +1,11 @@
 use super::BitBoard;
 
 pub const NOT_A_FILE: u64 = 0xfefefefefefefefe;
-pub const NOT_AB_FILE: u64 = 0xfcfcfcfcfcfcfcfc;
+pub const NOT_AB_FILE: u64 = NOT_A_FILE & (NOT_A_FILE << 1);
+pub const NOT_ABCD_FILE: u64 = NOT_AB_FILE & (NOT_AB_FILE << 2);
 pub const NOT_H_FILE: u64 = 0x7f7f7f7f7f7f7f7f;
-pub const NOT_GH_FILE: u64 = 0x3f3f3f3f3f3f3f3f;
+pub const NOT_GH_FILE: u64 = NOT_H_FILE & (NOT_H_FILE >> 1);
+pub const NOT_EFGH_FILE: u64 = NOT_GH_FILE & (NOT_GH_FILE >> 2);
 pub const DEBRUIJN64: u64 = 0x03f79d71b4cb0a89;
 
 #[cfg_attr(rustfmt, rustfmt_skip)]

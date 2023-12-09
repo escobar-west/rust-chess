@@ -82,47 +82,35 @@ impl BitBoard {
     }
 
     const fn gen_east_mask(self) -> Self {
-        let self_inner = self.0;
-        let mut mask: u64 = (self_inner << 1) & NOT_A_FILE;
-        let mut counter: u8 = 2;
-        while counter < 8 {
-            mask |= (mask << 1) & NOT_A_FILE;
-            counter += 1;
-        }
-        Self(mask)
+        let mut mask = self.0;
+        mask |= NOT_A_FILE & (mask << 1);
+        mask |= NOT_AB_FILE & (mask << 2);
+        mask |= NOT_ABCD_FILE & (mask << 4);
+        Self(mask ^ self.0)
     }
 
     const fn gen_north_mask(self) -> Self {
-        let self_inner = self.0;
-        let mut mask: u64 = self_inner << 8;
-        let mut counter: u8 = 2;
-        while counter < 8 {
-            mask |= mask << 8;
-            counter += 1;
-        }
-        Self(mask)
+        let mut mask = self.0;
+        mask |= mask << 8;
+        mask |= mask << 16;
+        mask |= mask << 32;
+        Self(mask ^ self.0)
     }
 
     const fn gen_west_mask(self) -> Self {
-        let self_inner = self.0;
-        let mut mask: u64 = (self_inner >> 1) & NOT_H_FILE;
-        let mut counter: u8 = 2;
-        while counter < 8 {
-            mask |= (mask >> 1) & NOT_H_FILE;
-            counter += 1;
-        }
-        Self(mask)
+        let mut mask = self.0;
+        mask |= NOT_H_FILE & (mask >> 1);
+        mask |= NOT_GH_FILE & (mask >> 2);
+        mask |= NOT_EFGH_FILE & (mask >> 4);
+        Self(mask ^ self.0)
     }
 
     const fn gen_south_mask(self) -> Self {
-        let self_inner = self.0;
-        let mut mask: u64 = self_inner >> 8;
-        let mut counter: u8 = 2;
-        while counter < 8 {
-            mask |= mask >> 8;
-            counter += 1;
-        }
-        Self(mask)
+        let mut mask = self.0;
+        mask |= mask >> 8;
+        mask |= mask >> 16;
+        mask |= mask >> 32;
+        Self(mask ^ self.0)
     }
 
     const fn gen_knight_mask(self) -> Self {
