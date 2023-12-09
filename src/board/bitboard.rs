@@ -89,11 +89,33 @@ impl BitBoard {
         Self(mask ^ self.0)
     }
 
+    const fn gen_east_north_mask(self) -> Self {
+        const pr0: u64 = NOT_A_FILE;
+        const pr1: u64 = pr0 & (pr0 << 9);
+        const pr2: u64 = pr1 & (pr1 << 18);
+        let mut mask = self.0;
+        mask |= pr0 & (mask << 9);
+        mask |= pr1 & (mask << 18);
+        mask |= pr2 & (mask << 36);
+        Self(mask ^ self.0)
+    }
+
     const fn gen_north_mask(self) -> Self {
         let mut mask = self.0;
         mask |= mask << 8;
         mask |= mask << 16;
         mask |= mask << 32;
+        Self(mask ^ self.0)
+    }
+
+    const fn gen_north_west_mask(self) -> Self {
+        const pr0: u64 = NOT_A_FILE;
+        const pr1: u64 = pr0 & (pr0 << 7);
+        const pr2: u64 = pr1 & (pr1 << 14);
+        let mut mask = self.0;
+        mask |= pr0 & (mask << 7);
+        mask |= pr1 & (mask << 14);
+        mask |= pr2 & (mask << 28);
         Self(mask ^ self.0)
     }
 
@@ -105,11 +127,33 @@ impl BitBoard {
         Self(mask ^ self.0)
     }
 
+    const fn gen_west_south_mask(self) -> Self {
+        const pr0: u64 = NOT_A_FILE;
+        const pr1: u64 = pr0 & (pr0 >> 9);
+        const pr2: u64 = pr1 & (pr1 >> 18);
+        let mut mask = self.0;
+        mask |= pr0 & (mask >> 9);
+        mask |= pr1 & (mask >> 18);
+        mask |= pr2 & (mask >> 36);
+        Self(mask ^ self.0)
+    }
+
     const fn gen_south_mask(self) -> Self {
         let mut mask = self.0;
         mask |= mask >> 8;
         mask |= mask >> 16;
         mask |= mask >> 32;
+        Self(mask ^ self.0)
+    }
+
+    const fn gen_south_east_mask(self) -> Self {
+        const pr0: u64 = NOT_A_FILE;
+        const pr1: u64 = pr0 & (pr0 >> 7);
+        const pr2: u64 = pr1 & (pr1 >> 14);
+        let mut mask = self.0;
+        mask |= pr0 & (mask >> 7);
+        mask |= pr1 & (mask >> 14);
+        mask |= pr2 & (mask >> 28);
         Self(mask ^ self.0)
     }
 
