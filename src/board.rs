@@ -4,7 +4,8 @@ mod mailbox;
 
 use crate::pieces::{Color, Figure, Piece};
 use bitboard::{
-    BitBoard, Direction, EMPTY_BOARD, FULL_BOARD, KING_MOVES, KNIGHT_MOVES, STRAIGHT_MOVES,
+    BitBoard, Direction, DIAG_MOVES, EMPTY_BOARD, FULL_BOARD, KING_MOVES, KNIGHT_MOVES,
+    STRAIGHT_MOVES,
 };
 pub use components::{Column, Row, Square};
 use mailbox::MailBox;
@@ -104,22 +105,24 @@ impl Board {
         self.clear_square(from).and_then(|p| self.set_square(to, p))
     }
 
-    pub fn get_legal_moves_at_square(&self, square: Square) -> BitBoard {
+    pub fn get_legal_moves_at_square_no_check(&self, square: Square) -> BitBoard {
         let Some(piece) = self.get_square(square) else {
             return EMPTY_BOARD;
         };
         let move_mask = match piece.figure {
-            Figure::Rook => self.get_rook_moves(square),
+            Figure::Rook => self.get_ray_moves(square, &STRAIGHT_MOVES),
             Figure::Knight => self.get_knight_moves(square),
+            Figure::Bishop => self.get_ray_moves(square, &DIAG_MOVES),
             Figure::King => self.get_king_moves(square),
             _ => EMPTY_BOARD,
         };
-        move_mask & !self.get_color_map(piece.color)
+        let pin_mask = self.get_pin_mask(square, piece.color);
+        move_mask & !self.get_color_map(piece.color) & pin_mask
     }
 
-    pub fn get_rook_moves(&self, square: Square) -> BitBoard {
+    pub fn get_ray_moves(&self, square: Square, rays: &[[BitBoard; 4]; 64]) -> BitBoard {
         let mut output_mask = EMPTY_BOARD;
-        let ray_masks = STRAIGHT_MOVES[usize::from(square)];
+        let ray_masks = rays[usize::from(square)];
         for dir in [
             Direction::East,
             Direction::North,
@@ -132,7 +135,7 @@ impl Board {
                 Direction::West | Direction::South => (ray_mask & self.occupied).bitscan_backward(),
             };
             if let Some(first_blocker) = first_blocker {
-                ray_mask ^= STRAIGHT_MOVES[usize::from(first_blocker)][dir as usize];
+                ray_mask ^= rays[usize::from(first_blocker)][dir as usize];
             }
             output_mask |= ray_mask;
         }
@@ -146,51 +149,63 @@ impl Board {
     pub fn get_king_moves(&self, square: Square) -> BitBoard {
         KING_MOVES[usize::from(square)]
     }
-    pub fn get_pin_mask(&self, pin_square: Square, color: Color) -> BitBoard {
-        let pin_square_mask = BitBoard::from(pin_square);
+    fn get_pin_mask(&self, pin_square: Square, color: Color) -> BitBoard {
         let king_mask = self.get_color_map(color) & self.kings;
         let Some(king_square) = king_mask.bitscan_forward() else {
             return FULL_BOARD;
         };
-        let ray_masks = STRAIGHT_MOVES[usize::from(king_square)];
-        let pinner_mask = (self.rooks | self.queens) & self.get_color_map(!color);
-        for dir in [
-            Direction::East,
-            Direction::North,
-            Direction::West,
-            Direction::South,
+        let pin_square_mask = BitBoard::from(pin_square);
+        let straight_pinner_mask = (self.rooks | self.queens) & self.get_color_map(!color);
+        let diag_pinner_mask = (self.bishops | self.queens) & self.get_color_map(!color);
+        for (rays_arr, pinner_mask) in [
+            (STRAIGHT_MOVES, straight_pinner_mask),
+            (DIAG_MOVES, diag_pinner_mask),
         ] {
-            let king_ray_mask = ray_masks[dir as usize];
-            if (king_ray_mask & pin_square_mask & pinner_mask).is_empty() {
-                continue;
+            let ray_masks = rays_arr[usize::from(king_square)];
+            let pin_participants = pin_square_mask | pinner_mask;
+            for dir in [
+                Direction::East,
+                Direction::North,
+                Direction::West,
+                Direction::South,
+            ] {
+                let king_ray_mask = ray_masks[dir as usize];
+                println!("king_ray_mask direction: {:#?}", dir);
+                king_ray_mask.print_board();
+                let check_mask = king_ray_mask & pin_participants;
+                println!("check_mask");
+                check_mask.print_board();
+                if check_mask.is_empty() {
+                    continue;
+                }
+                let first_blocker = match dir {
+                    Direction::East | Direction::North => {
+                        (king_ray_mask & self.occupied).bitscan_forward()
+                    }
+                    Direction::West | Direction::South => {
+                        (king_ray_mask & self.occupied).bitscan_backward()
+                    }
+                };
+                if first_blocker != Some(pin_square) {
+                    continue;
+                }
+                let pin_ray_mask = rays_arr[usize::from(pin_square)][dir as usize];
+                let second_blocker = match dir {
+                    Direction::East | Direction::North => {
+                        (pin_ray_mask & self.occupied).bitscan_forward()
+                    }
+                    Direction::West | Direction::South => {
+                        (pin_ray_mask & self.occupied).bitscan_backward()
+                    }
+                };
+                let Some(second_blocker) = second_blocker else {
+                    continue;
+                };
+                if (pinner_mask & second_blocker.into()).is_empty() {
+                    continue;
+                }
+                return king_ray_mask ^ rays_arr[usize::from(second_blocker)][dir as usize];
             }
-            let first_blocker = match dir {
-                Direction::East | Direction::North => {
-                    (king_ray_mask & self.occupied).bitscan_forward()
-                }
-                Direction::West | Direction::South => {
-                    (king_ray_mask & self.occupied).bitscan_backward()
-                }
-            };
-            if first_blocker != Some(pin_square) {
-                continue;
-            }
-            let pin_ray_mask = STRAIGHT_MOVES[usize::from(pin_square)][dir as usize];
-            let second_blocker = match dir {
-                Direction::East | Direction::North => {
-                    (pin_ray_mask & self.occupied).bitscan_forward()
-                }
-                Direction::West | Direction::South => {
-                    (pin_ray_mask & self.occupied).bitscan_backward()
-                }
-            };
-            let Some(second_blocker) = second_blocker else {
-                continue;
-            };
-            if (pinner_mask & second_blocker.into()).is_empty() {
-                continue;
-            }
-            return king_mask ^ STRAIGHT_MOVES[usize::from(second_blocker)][dir as usize];
         }
         FULL_BOARD
     }
@@ -248,129 +263,4 @@ impl Board {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::gamestate::DEFAULT_FEN;
-    #[test]
-    fn test_default_fen() {
-        let fen = DEFAULT_FEN;
-        let board = Board::try_from_fen(fen).unwrap();
-
-        let pawn_mask = BitBoard::from(Row::new(1)) | BitBoard::from(Row::new(6));
-        assert_eq!(board.pawns, pawn_mask);
-
-        let rook_mask = BitBoard::from(Square::new(0))
-            | BitBoard::from(Square::new(7))
-            | BitBoard::from(Square::new(56))
-            | BitBoard::from(Square::new(63));
-        assert_eq!(board.rooks, rook_mask);
-
-        let knight_mask = BitBoard::from(Square::new(1))
-            | BitBoard::from(Square::new(6))
-            | BitBoard::from(Square::new(57))
-            | BitBoard::from(Square::new(62));
-        assert_eq!(board.knights, knight_mask);
-
-        let bishop_mask = BitBoard::from(Square::new(2))
-            | BitBoard::from(Square::new(5))
-            | BitBoard::from(Square::new(58))
-            | BitBoard::from(Square::new(61));
-        assert_eq!(board.bishops, bishop_mask);
-
-        let queen_mask = BitBoard::from(Square::new(3)) | BitBoard::from(Square::new(59));
-        assert_eq!(board.queens, queen_mask);
-
-        let king_mask = BitBoard::from(Square::new(4)) | BitBoard::from(Square::new(60));
-        assert_eq!(board.kings, king_mask);
-
-        let white_mask = BitBoard::from(Row::new(0)) | BitBoard::from(Row::new(1));
-        assert_eq!(board.white, white_mask);
-
-        let black_mask = BitBoard::from(Row::new(6)) | BitBoard::from(Row::new(7));
-        assert_eq!(board.black, black_mask);
-
-        let occ_mask = white_mask | black_mask;
-        assert_eq!(board.occupied, occ_mask);
-
-        let to_fen = board.to_fen();
-        assert_eq!(to_fen, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
-    }
-
-    #[test]
-    fn test_clear_and_set_square() {
-        let fen = DEFAULT_FEN;
-        let mut board = Board::try_from_fen(fen).unwrap();
-        board.clear_square(Square::new(56));
-
-        let rook_mask = BitBoard::from(Square::new(0))
-            | BitBoard::from(Square::new(7))
-            | BitBoard::from(Square::new(63));
-        assert_eq!(board.rooks, rook_mask);
-
-        let piece = board.set_square(
-            Square::new(7),
-            Piece {
-                color: Color::Black,
-                figure: Figure::Queen,
-            },
-        );
-        assert_eq!(
-            piece,
-            Some(Piece {
-                color: Color::White,
-                figure: Figure::Rook
-            })
-        );
-
-        let rook_mask = BitBoard::from(Square::new(0)) | BitBoard::from(Square::new(63));
-        assert_eq!(board.rooks, rook_mask);
-
-        let queen_mask = BitBoard::from(Square::new(3))
-            | BitBoard::from(Square::new(7))
-            | BitBoard::from(Square::new(59));
-        assert_eq!(board.queens, queen_mask);
-
-        let white_mask = (BitBoard::from(Row::new(0)) | BitBoard::from(Row::new(1)))
-            ^ BitBoard::from(Square::new(7));
-        assert_eq!(board.white, white_mask);
-
-        let black_mask = (BitBoard::from(Row::new(6))
-            | BitBoard::from(Row::new(7))
-            | BitBoard::from(Square::new(7)))
-            ^ BitBoard::from(Square::new(56));
-        assert_eq!(board.black, black_mask);
-    }
-
-    #[test]
-    fn test_move_piece() {
-        let fen = DEFAULT_FEN;
-        let mut board = Board::try_from_fen(fen).unwrap();
-        board.move_piece(Square::new(12), Square::new(28));
-        let new_fen = board.to_fen();
-        assert_eq!(new_fen, "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR");
-        board.move_piece(Square::new(50), Square::new(34));
-        let new_fen = board.to_fen();
-        assert_eq!(new_fen, "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR");
-        board.move_piece(Square::new(0), Square::new(63));
-        let new_fen = board.to_fen();
-        assert_eq!(new_fen, "rnbqkbnR/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/1NBQKBNR");
-    }
-
-    #[test]
-    fn test_rook_moves_on_board() {
-        let fen = DEFAULT_FEN;
-        let mut board = Board::try_from_fen(fen).unwrap();
-        board.set_square(
-            Square::new(0),
-            Piece {
-                color: Color::Black,
-                figure: Figure::Rook,
-            },
-        );
-        let rook_moves = board.get_legal_moves_at_square(Square::new(0));
-        assert_eq!(
-            rook_moves,
-            BitBoard::from(Square::new(1)) | BitBoard::from(Square::new(8))
-        );
-    }
-}
+mod tests;

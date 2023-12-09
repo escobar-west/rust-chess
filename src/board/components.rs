@@ -35,24 +35,6 @@ impl From<Column> for BitBoard {
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Square(u8);
 
-impl From<Square> for BitBoard {
-    fn from(value: Square) -> Self {
-        SQUARES[value.0 as usize]
-    }
-}
-
-impl From<Square> for u8 {
-    fn from(value: Square) -> Self {
-        value.0
-    }
-}
-
-impl From<Square> for usize {
-    fn from(value: Square) -> Self {
-        value.0 as usize
-    }
-}
-
 impl Square {
     pub const fn new(value: u8) -> Self {
         assert!(value & 63 == value);
@@ -74,5 +56,23 @@ impl Square {
             _ => return Err("invalid row"),
         };
         Ok(Square::new((col + 8 * row) as u8))
+    }
+}
+
+impl From<Square> for BitBoard {
+    fn from(value: Square) -> Self {
+        SQUARES[value.0 as usize]
+    }
+}
+
+impl From<Square> for u8 {
+    fn from(value: Square) -> Self {
+        value.0
+    }
+}
+
+impl From<Square> for usize {
+    fn from(value: Square) -> Self {
+        value.0 as usize
     }
 }
