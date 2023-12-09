@@ -70,18 +70,24 @@ impl Board {
         self.occupied |= mask;
     }
 
-    pub fn get_piece_at_square(&self, square: Square) -> Option<Piece> {
-        self.mailbox.get_piece_at_square(square)
+    fn toggle_mask_by_piece(&mut self, mask: BitBoard, piece: Piece) {
+        *self.get_piece_map_mut(piece.figure) ^= mask;
+        *self.get_color_map_mut(piece.color) ^= mask;
+        self.occupied ^= mask;
+    }
+
+    pub fn get_square(&self, square: Square) -> Option<Piece> {
+        self.mailbox.get_square(square)
     }
 
     pub fn clear_square(&mut self, square: Square) -> Option<Piece> {
-        let old_piece = self.mailbox.clear_square(square);
-        old_piece.map(|p| self.clear_mask_by_piece(square.into(), p));
-        old_piece
+        let piece = self.mailbox.clear_square(square);
+        piece.map(|p| self.clear_mask_by_piece(square.into(), p));
+        piece
     }
 
-    pub fn set_piece_at_square(&mut self, square: Square, piece: Piece) -> Option<Piece> {
-        let old_piece = self.mailbox.set_piece_at_square(square, piece);
+    pub fn set_square(&mut self, square: Square, piece: Piece) -> Option<Piece> {
+        let old_piece = self.mailbox.set_square(square, piece);
         let square_mask: BitBoard = square.into();
         old_piece.map(|old_p| self.clear_mask_by_piece(square_mask, old_p));
         self.set_mask_by_piece(square_mask, piece);
@@ -90,14 +96,13 @@ impl Board {
 
     pub fn move_piece(&mut self, from: Square, to: Square) -> Option<Piece> {
         self.clear_square(from)
-            .map(|p| self.set_piece_at_square(to, p))
+            .map(|p| self.set_square(to, p))
             .flatten()
     }
 
     pub fn get_legal_moves_at_square(&self, square: Square) -> BitBoard {
-        let piece = match self.get_piece_at_square(square) {
-            Some(p) => p,
-            None => return BitBoard::new(0),
+        let Some(piece) = self.get_square(square) else {
+            return BitBoard::new(0);
         };
         let move_mask = match piece.figure {
             Figure::Rook => self.get_rook_moves(square),
@@ -153,7 +158,7 @@ impl Board {
                 } else {
                     let piece = Piece::try_from(c)?;
                     let square = Square::from_coords(Row::new(row_idx), Column::new(col_idx));
-                    board.set_piece_at_square(square, piece);
+                    board.set_square(square, piece);
                     col_idx += 1;
                 }
             }
@@ -168,7 +173,7 @@ impl Board {
             let mut fen_row: String = "".into();
             for col_idx in 0..8u8 {
                 let square = Square::from_coords(Row::new(row_idx), Column::new(col_idx));
-                match self.mailbox.get_piece_at_square(square) {
+                match self.mailbox.get_square(square) {
                     Some(p) => {
                         if none_count != 0 {
                             fen_row.push_str(&format!("{}", none_count));
@@ -240,7 +245,7 @@ mod tests {
     }
 
     #[test]
-    fn test_clear_and_set_piece_at_square() {
+    fn test_clear_and_set_square() {
         let fen = DEFAULT_FEN;
         let mut board = Board::try_from_fen(fen).unwrap();
         board.clear_square(Square::new(56));
@@ -250,7 +255,7 @@ mod tests {
             | BitBoard::from(Square::new(63));
         assert_eq!(board.rooks, rook_mask);
 
-        let piece = board.set_piece_at_square(
+        let piece = board.set_square(
             Square::new(7),
             Piece {
                 color: Color::Black,
@@ -302,8 +307,15 @@ mod tests {
     #[test]
     fn test_rook_moves_on_board() {
         let fen = DEFAULT_FEN;
-        let board = Board::try_from_fen(fen).unwrap();
-        let rook_moves = board.get_rook_moves(Square::new(0));
+        let mut board = Board::try_from_fen(fen).unwrap();
+        board.set_square(
+            Square::new(0),
+            Piece {
+                color: Color::Black,
+                figure: Figure::Rook,
+            },
+        );
+        let rook_moves = board.get_legal_moves_at_square(Square::new(0));
         assert_eq!(
             rook_moves,
             BitBoard::from(Square::new(1)) | BitBoard::from(Square::new(8))

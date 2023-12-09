@@ -5,7 +5,7 @@ use crate::pieces::Piece;
 pub struct MailBox(Box<[Option<Piece>; 64]>);
 
 impl MailBox {
-    pub fn get_piece_at_square(&self, square: Square) -> Option<Piece> {
+    pub fn get_square(&self, square: Square) -> Option<Piece> {
         self.0[usize::from(square)]
     }
 
@@ -13,7 +13,7 @@ impl MailBox {
         self.0[usize::from(square)].take()
     }
 
-    pub fn set_piece_at_square(&mut self, square: Square, piece: Piece) -> Option<Piece> {
+    pub fn set_square(&mut self, square: Square, piece: Piece) -> Option<Piece> {
         self.0[usize::from(square)].replace(piece)
     }
 }
