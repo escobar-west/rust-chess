@@ -10,7 +10,7 @@ pub struct CastleRights(u8);
 
 impl CastleRights {
     pub fn new(wk: bool, wq: bool, bk: bool, bq: bool) -> Self {
-        Self(1 * u8::from(wk) + 2 * u8::from(wq) + 4 * u8::from(bk) + 8 * u8::from(bq))
+        Self(u8::from(wk) + 2 * u8::from(wq) + 4 * u8::from(bk) + 8 * u8::from(bq))
     }
 
     pub fn try_from_fen(fen: &str) -> Result<Self, &'static str> {
@@ -49,7 +49,7 @@ impl Default for GameState {
 
 impl GameState {
     fn try_from_fen(fen: &str) -> Result<Self, &'static str> {
-        let mut fen_iter = fen.split(" ");
+        let mut fen_iter = fen.split(' ');
 
         let position_fen = fen_iter.next().ok_or("Empty Fen")?;
         let board = Board::try_from_fen(position_fen)?;

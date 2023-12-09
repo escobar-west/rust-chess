@@ -7,8 +7,10 @@ pub const NOT_H_FILE: u64 = 0x7f7f7f7f7f7f7f7f;
 pub const NOT_GH_FILE: u64 = NOT_H_FILE & (NOT_H_FILE >> 1);
 pub const NOT_EFGH_FILE: u64 = NOT_GH_FILE & (NOT_GH_FILE >> 2);
 pub const DEBRUIJN64: u64 = 0x03f79d71b4cb0a89;
+pub const FULL_BOARD: BitBoard = BitBoard::new(u64::MAX);
+pub const EMPTY_BOARD: BitBoard = BitBoard::new(0);
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
+#[rustfmt::skip]
 pub static FWDSCAN: [u8; 64] = [
      0,  1, 48,  2, 57, 49, 28,  3,
     61, 58, 50, 42, 38, 29, 17,  4,
@@ -20,7 +22,7 @@ pub static FWDSCAN: [u8; 64] = [
     25, 14, 19,  9, 13,  8,  7,  6
 ];
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
+#[rustfmt::skip]
 pub static BACKSCAN: [u8; 64] = [
      0, 47,  1, 56, 48, 27,  2, 60,
     57, 49, 41, 37, 28, 16,  3, 61,

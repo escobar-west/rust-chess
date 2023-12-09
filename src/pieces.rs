@@ -23,9 +23,9 @@ pub struct Piece {
     pub figure: Figure,
 }
 
-impl Into<char> for Piece {
-    fn into(self) -> char {
-        let c = match self.figure {
+impl From<Piece> for char {
+    fn from(piece: Piece) -> Self {
+        let c = match piece.figure {
             Figure::Pawn => 'P',
             Figure::Rook => 'R',
             Figure::Knight => 'N',
@@ -33,7 +33,7 @@ impl Into<char> for Piece {
             Figure::Queen => 'Q',
             Figure::King => 'K',
         };
-        if self.color == Color::Black {
+        if piece.color == Color::Black {
             return c.to_lowercase().next().unwrap();
         }
         c

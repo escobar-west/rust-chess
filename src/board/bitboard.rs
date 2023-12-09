@@ -74,7 +74,7 @@ impl BitBoard {
     }
 
     const fn gen_row_mask(row: u8) -> Self {
-        Self(0xff << 8 * row)
+        Self(0xff << (8 * row))
     }
 
     const fn gen_col_mask(col: u8) -> Self {
@@ -90,13 +90,13 @@ impl BitBoard {
     }
 
     const fn gen_east_north_mask(self) -> Self {
-        const pr0: u64 = NOT_A_FILE;
-        const pr1: u64 = pr0 & (pr0 << 9);
-        const pr2: u64 = pr1 & (pr1 << 18);
+        const PR0: u64 = NOT_A_FILE;
+        const PR1: u64 = PR0 & (PR0 << 9);
+        const PR2: u64 = PR1 & (PR1 << 18);
         let mut mask = self.0;
-        mask |= pr0 & (mask << 9);
-        mask |= pr1 & (mask << 18);
-        mask |= pr2 & (mask << 36);
+        mask |= PR0 & (mask << 9);
+        mask |= PR1 & (mask << 18);
+        mask |= PR2 & (mask << 36);
         Self(mask ^ self.0)
     }
 
@@ -109,13 +109,13 @@ impl BitBoard {
     }
 
     const fn gen_north_west_mask(self) -> Self {
-        const pr0: u64 = NOT_A_FILE;
-        const pr1: u64 = pr0 & (pr0 << 7);
-        const pr2: u64 = pr1 & (pr1 << 14);
+        const PR0: u64 = NOT_A_FILE;
+        const PR1: u64 = PR0 & (PR0 << 7);
+        const PR2: u64 = PR1 & (PR1 << 14);
         let mut mask = self.0;
-        mask |= pr0 & (mask << 7);
-        mask |= pr1 & (mask << 14);
-        mask |= pr2 & (mask << 28);
+        mask |= PR0 & (mask << 7);
+        mask |= PR1 & (mask << 14);
+        mask |= PR2 & (mask << 28);
         Self(mask ^ self.0)
     }
 
@@ -128,13 +128,13 @@ impl BitBoard {
     }
 
     const fn gen_west_south_mask(self) -> Self {
-        const pr0: u64 = NOT_A_FILE;
-        const pr1: u64 = pr0 & (pr0 >> 9);
-        const pr2: u64 = pr1 & (pr1 >> 18);
+        const PR0: u64 = NOT_A_FILE;
+        const PR1: u64 = PR0 & (PR0 >> 9);
+        const PR2: u64 = PR1 & (PR1 >> 18);
         let mut mask = self.0;
-        mask |= pr0 & (mask >> 9);
-        mask |= pr1 & (mask >> 18);
-        mask |= pr2 & (mask >> 36);
+        mask |= PR0 & (mask >> 9);
+        mask |= PR1 & (mask >> 18);
+        mask |= PR2 & (mask >> 36);
         Self(mask ^ self.0)
     }
 
@@ -147,13 +147,13 @@ impl BitBoard {
     }
 
     const fn gen_south_east_mask(self) -> Self {
-        const pr0: u64 = NOT_A_FILE;
-        const pr1: u64 = pr0 & (pr0 >> 7);
-        const pr2: u64 = pr1 & (pr1 >> 14);
+        const PR0: u64 = NOT_A_FILE;
+        const PR1: u64 = PR0 & (PR0 >> 7);
+        const PR2: u64 = PR1 & (PR1 >> 14);
         let mut mask = self.0;
-        mask |= pr0 & (mask >> 7);
-        mask |= pr1 & (mask >> 14);
-        mask |= pr2 & (mask >> 28);
+        mask |= PR0 & (mask >> 7);
+        mask |= PR1 & (mask >> 14);
+        mask |= PR2 & (mask >> 28);
         Self(mask ^ self.0)
     }
 
@@ -330,7 +330,7 @@ mod tests {
         let lsb = bitboard.bitscan_forward().unwrap();
         assert_eq!(lsb, Square::new(63));
 
-        let bitboard = BitBoard::new(u64::MAX);
+        let bitboard = FULL_BOARD;
         let lsb = bitboard.bitscan_forward().unwrap();
         assert_eq!(lsb, Square::new(0));
     }
@@ -361,7 +361,7 @@ mod tests {
         let lsb = bitboard.bitscan_backward().unwrap();
         assert_eq!(lsb, Square::new(63));
 
-        let bitboard = BitBoard::new(u64::MAX);
+        let bitboard = FULL_BOARD;
         let lsb = bitboard.bitscan_backward().unwrap();
         assert_eq!(lsb, Square::new(63));
     }

@@ -3,7 +3,9 @@ mod components;
 mod mailbox;
 
 use crate::pieces::{Color, Figure, Piece};
-use bitboard::{BitBoard, Direction, KING_MOVES, KNIGHT_MOVES, STRAIGHT_MOVES};
+use bitboard::{
+    BitBoard, Direction, EMPTY_BOARD, FULL_BOARD, KING_MOVES, KNIGHT_MOVES, STRAIGHT_MOVES,
+};
 pub use components::{Column, Row, Square};
 use mailbox::MailBox;
 
@@ -82,39 +84,41 @@ impl Board {
 
     pub fn clear_square(&mut self, square: Square) -> Option<Piece> {
         let piece = self.mailbox.clear_square(square);
-        piece.map(|p| self.clear_mask_by_piece(square.into(), p));
+        if let Some(p) = piece {
+            self.clear_mask_by_piece(square.into(), p)
+        }
         piece
     }
 
     pub fn set_square(&mut self, square: Square, piece: Piece) -> Option<Piece> {
         let old_piece = self.mailbox.set_square(square, piece);
         let square_mask: BitBoard = square.into();
-        old_piece.map(|old_p| self.clear_mask_by_piece(square_mask, old_p));
+        if let Some(old_p) = old_piece {
+            self.clear_mask_by_piece(square_mask, old_p)
+        }
         self.set_mask_by_piece(square_mask, piece);
         old_piece
     }
 
     pub fn move_piece(&mut self, from: Square, to: Square) -> Option<Piece> {
-        self.clear_square(from)
-            .map(|p| self.set_square(to, p))
-            .flatten()
+        self.clear_square(from).and_then(|p| self.set_square(to, p))
     }
 
     pub fn get_legal_moves_at_square(&self, square: Square) -> BitBoard {
         let Some(piece) = self.get_square(square) else {
-            return BitBoard::new(0);
+            return EMPTY_BOARD;
         };
         let move_mask = match piece.figure {
             Figure::Rook => self.get_rook_moves(square),
             Figure::Knight => self.get_knight_moves(square),
             Figure::King => self.get_king_moves(square),
-            _ => BitBoard::new(0),
+            _ => EMPTY_BOARD,
         };
         move_mask & !self.get_color_map(piece.color)
     }
 
     pub fn get_rook_moves(&self, square: Square) -> BitBoard {
-        let mut output_mask = BitBoard::new(0);
+        let mut output_mask = EMPTY_BOARD;
         let ray_masks = STRAIGHT_MOVES[usize::from(square)];
         for dir in [
             Direction::East,
@@ -142,10 +146,58 @@ impl Board {
     pub fn get_king_moves(&self, square: Square) -> BitBoard {
         KING_MOVES[usize::from(square)]
     }
+    pub fn get_pin_mask(&self, pin_square: Square, color: Color) -> BitBoard {
+        let pin_square_mask = BitBoard::from(pin_square);
+        let king_mask = self.get_color_map(color) & self.kings;
+        let Some(king_square) = king_mask.bitscan_forward() else {
+            return FULL_BOARD;
+        };
+        let ray_masks = STRAIGHT_MOVES[usize::from(king_square)];
+        let pinner_mask = (self.rooks | self.queens) & self.get_color_map(!color);
+        for dir in [
+            Direction::East,
+            Direction::North,
+            Direction::West,
+            Direction::South,
+        ] {
+            let king_ray_mask = ray_masks[dir as usize];
+            if (king_ray_mask & pin_square_mask & pinner_mask).is_empty() {
+                continue;
+            }
+            let first_blocker = match dir {
+                Direction::East | Direction::North => {
+                    (king_ray_mask & self.occupied).bitscan_forward()
+                }
+                Direction::West | Direction::South => {
+                    (king_ray_mask & self.occupied).bitscan_backward()
+                }
+            };
+            if first_blocker != Some(pin_square) {
+                continue;
+            }
+            let pin_ray_mask = STRAIGHT_MOVES[usize::from(pin_square)][dir as usize];
+            let second_blocker = match dir {
+                Direction::East | Direction::North => {
+                    (pin_ray_mask & self.occupied).bitscan_forward()
+                }
+                Direction::West | Direction::South => {
+                    (pin_ray_mask & self.occupied).bitscan_backward()
+                }
+            };
+            let Some(second_blocker) = second_blocker else {
+                continue;
+            };
+            if (pinner_mask & second_blocker.into()).is_empty() {
+                continue;
+            }
+            return king_mask ^ STRAIGHT_MOVES[usize::from(second_blocker)][dir as usize];
+        }
+        FULL_BOARD
+    }
 
     pub fn try_from_fen(fen: &str) -> Result<Self, &'static str> {
-        let position = fen.split(" ").next().ok_or("Empty Fen")?;
-        let fen_positions: Vec<&str> = position.split("/").collect();
+        let position = fen.split(' ').next().ok_or("Empty Fen")?;
+        let fen_positions: Vec<&str> = position.split('/').collect();
         if fen_positions.len() != 8 {
             return Err("Invalid number of rows");
         }
@@ -153,7 +205,7 @@ impl Board {
         for (row_idx, fen_row) in (0..8u8).rev().zip(fen_positions.iter()) {
             let mut col_idx = 0u8;
             for c in fen_row.chars() {
-                if c.is_digit(10) {
+                if c.is_ascii_digit() {
                     col_idx += c.to_digit(10).unwrap() as u8;
                 } else {
                     let piece = Piece::try_from(c)?;
