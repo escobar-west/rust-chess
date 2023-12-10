@@ -106,3 +106,66 @@ impl Not for Color {
         }
     }
 }
+
+pub mod constants {
+    use super::*;
+    pub const WHITE_PAWN: Piece = Piece {
+        color: Color::White,
+        figure: Figure::Pawn,
+    };
+
+    pub const WHITE_ROOK: Piece = Piece {
+        color: Color::White,
+        figure: Figure::Rook,
+    };
+
+    pub const WHITE_KNIGHT: Piece = Piece {
+        color: Color::White,
+        figure: Figure::Knight,
+    };
+
+    pub const WHITE_BISHOP: Piece = Piece {
+        color: Color::White,
+        figure: Figure::Bishop,
+    };
+
+    pub const WHITE_QUEEN: Piece = Piece {
+        color: Color::White,
+        figure: Figure::Queen,
+    };
+
+    pub const WHITE_KING: Piece = Piece {
+        color: Color::White,
+        figure: Figure::King,
+    };
+
+    pub const BLACK_PAWN: Piece = Piece {
+        color: Color::Black,
+        figure: Figure::Pawn,
+    };
+
+    pub const BLACK_ROOK: Piece = Piece {
+        color: Color::Black,
+        figure: Figure::Rook,
+    };
+
+    pub const BLACK_KNIGHT: Piece = Piece {
+        color: Color::Black,
+        figure: Figure::Knight,
+    };
+
+    pub const BLACK_BISHOP: Piece = Piece {
+        color: Color::Black,
+        figure: Figure::Bishop,
+    };
+
+    pub const BLACK_QUEEN: Piece = Piece {
+        color: Color::Black,
+        figure: Figure::Queen,
+    };
+
+    pub const BLACK_KING: Piece = Piece {
+        color: Color::Black,
+        figure: Figure::King,
+    };
+}

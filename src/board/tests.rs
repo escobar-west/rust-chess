@@ -2,59 +2,46 @@ use super::*;
 use crate::gamestate::DEFAULT_FEN;
 
 fn validate_board(board: Board) {
-    assert!(board.white ^ board.black == board.occupied);
-    assert!(board.white & board.black == EMPTY_BOARD);
+    assert!(board.white_occupied ^ board.black_occupied == board.occupied);
+    assert!(board.white_occupied & board.black_occupied == EMPTY_BOARD);
     assert!(
-        board.pawns ^ board.rooks ^ board.knights ^ board.bishops ^ board.queens ^ board.kings
-            == board.occupied
+        board.white_pieces.pawns
+            ^ board.white_pieces.rooks
+            ^ board.white_pieces.knights
+            ^ board.white_pieces.bishops
+            ^ board.white_pieces.queens
+            ^ board.white_pieces.kings
+            == board.white_occupied
     );
-    for square in board.white.iter_forward() {
+    for square in board.white_occupied.iter_forward() {
         assert_eq!(
             board.mailbox.get_square(square).unwrap().color,
             Color::White
         );
     }
-    for square in board.black.iter_forward() {
+    for square in board.black_occupied.iter_forward() {
         assert_eq!(
             board.mailbox.get_square(square).unwrap().color,
             Color::Black
         );
     }
-    for square in board.pawns.iter_forward() {
-        assert_eq!(
-            board.mailbox.get_square(square).unwrap().figure,
-            Figure::Pawn
-        );
+    for square in board.white_pieces.pawns.iter_forward() {
+        assert_eq!(board.mailbox.get_square(square).unwrap(), WHITE_PAWN);
     }
-    for square in board.rooks.iter_forward() {
-        assert_eq!(
-            board.mailbox.get_square(square).unwrap().figure,
-            Figure::Rook
-        );
+    for square in board.white_pieces.rooks.iter_forward() {
+        assert_eq!(board.mailbox.get_square(square).unwrap(), WHITE_ROOK);
     }
-    for square in board.knights.iter_forward() {
-        assert_eq!(
-            board.mailbox.get_square(square).unwrap().figure,
-            Figure::Knight
-        );
+    for square in board.white_pieces.knights.iter_forward() {
+        assert_eq!(board.mailbox.get_square(square).unwrap(), WHITE_KNIGHT);
     }
-    for square in board.bishops.iter_forward() {
-        assert_eq!(
-            board.mailbox.get_square(square).unwrap().figure,
-            Figure::Bishop
-        );
+    for square in board.white_pieces.bishops.iter_forward() {
+        assert_eq!(board.mailbox.get_square(square).unwrap(), WHITE_BISHOP);
     }
-    for square in board.queens.iter_forward() {
-        assert_eq!(
-            board.mailbox.get_square(square).unwrap().figure,
-            Figure::Queen
-        );
+    for square in board.white_pieces.queens.iter_forward() {
+        assert_eq!(board.mailbox.get_square(square).unwrap(), WHITE_QUEEN);
     }
-    for square in board.kings.iter_forward() {
-        assert_eq!(
-            board.mailbox.get_square(square).unwrap().figure,
-            Figure::King
-        );
+    for square in board.white_pieces.kings.iter_forward() {
+        assert_eq!(board.mailbox.get_square(square).unwrap(), WHITE_KING);
     }
     for square in (!board.occupied).iter_forward() {
         assert!(board.mailbox.get_square(square).is_none());
@@ -67,37 +54,55 @@ fn test_default_fen() {
     let board = Board::try_from_fen(fen).unwrap();
 
     let pawn_mask = BitBoard::from(Row::new(1)) | BitBoard::from(Row::new(6));
-    assert_eq!(board.pawns, pawn_mask);
+    assert_eq!(
+        board.white_pieces.pawns | board.black_pieces.pawns,
+        pawn_mask
+    );
 
     let rook_mask = BitBoard::from(Square::new(0))
         | BitBoard::from(Square::new(7))
         | BitBoard::from(Square::new(56))
         | BitBoard::from(Square::new(63));
-    assert_eq!(board.rooks, rook_mask);
+    assert_eq!(
+        board.white_pieces.rooks | board.black_pieces.rooks,
+        rook_mask
+    );
 
     let knight_mask = BitBoard::from(Square::new(1))
         | BitBoard::from(Square::new(6))
         | BitBoard::from(Square::new(57))
         | BitBoard::from(Square::new(62));
-    assert_eq!(board.knights, knight_mask);
+    assert_eq!(
+        board.white_pieces.knights | board.black_pieces.knights,
+        knight_mask
+    );
 
     let bishop_mask = BitBoard::from(Square::new(2))
         | BitBoard::from(Square::new(5))
         | BitBoard::from(Square::new(58))
         | BitBoard::from(Square::new(61));
-    assert_eq!(board.bishops, bishop_mask);
+    assert_eq!(
+        board.white_pieces.bishops | board.black_pieces.bishops,
+        bishop_mask
+    );
 
     let queen_mask = BitBoard::from(Square::new(3)) | BitBoard::from(Square::new(59));
-    assert_eq!(board.queens, queen_mask);
+    assert_eq!(
+        board.white_pieces.queens | board.black_pieces.queens,
+        queen_mask
+    );
 
     let king_mask = BitBoard::from(Square::new(4)) | BitBoard::from(Square::new(60));
-    assert_eq!(board.kings, king_mask);
+    assert_eq!(
+        board.white_pieces.kings | board.black_pieces.kings,
+        king_mask
+    );
 
     let white_mask = BitBoard::from(Row::new(0)) | BitBoard::from(Row::new(1));
-    assert_eq!(board.white, white_mask);
+    assert_eq!(board.white_occupied, white_mask);
 
     let black_mask = BitBoard::from(Row::new(6)) | BitBoard::from(Row::new(7));
-    assert_eq!(board.black, black_mask);
+    assert_eq!(board.black_occupied, black_mask);
 
     let occ_mask = white_mask | black_mask;
     assert_eq!(board.occupied, occ_mask);
@@ -115,7 +120,10 @@ fn test_clear_and_set_square() {
     let rook_mask = BitBoard::from(Square::new(0))
         | BitBoard::from(Square::new(7))
         | BitBoard::from(Square::new(63));
-    assert_eq!(board.rooks, rook_mask);
+    assert_eq!(
+        board.white_pieces.rooks | board.black_pieces.rooks,
+        rook_mask
+    );
 
     let piece = board.set_square(
         Square::new(7),
@@ -133,22 +141,28 @@ fn test_clear_and_set_square() {
     );
 
     let rook_mask = BitBoard::from(Square::new(0)) | BitBoard::from(Square::new(63));
-    assert_eq!(board.rooks, rook_mask);
+    assert_eq!(
+        board.white_pieces.rooks | board.black_pieces.rooks,
+        rook_mask
+    );
 
     let queen_mask = BitBoard::from(Square::new(3))
         | BitBoard::from(Square::new(7))
         | BitBoard::from(Square::new(59));
-    assert_eq!(board.queens, queen_mask);
+    assert_eq!(
+        board.white_pieces.queens | board.black_pieces.queens,
+        queen_mask
+    );
 
     let white_mask = (BitBoard::from(Row::new(0)) | BitBoard::from(Row::new(1)))
         ^ BitBoard::from(Square::new(7));
-    assert_eq!(board.white, white_mask);
+    assert_eq!(board.white_occupied, white_mask);
 
     let black_mask = (BitBoard::from(Row::new(6))
         | BitBoard::from(Row::new(7))
         | BitBoard::from(Square::new(7)))
         ^ BitBoard::from(Square::new(56));
-    assert_eq!(board.black, black_mask);
+    assert_eq!(board.black_occupied, black_mask);
 }
 
 #[test]
