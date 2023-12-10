@@ -4,7 +4,10 @@ mod mailbox;
 
 use crate::pieces::{Color, Figure, Piece};
 pub use bitboard::{BitBoard, EMPTY_BOARD, FULL_BOARD};
-use bitboard::{Direction, DIAG_MOVES, KING_MOVES, KNIGHT_MOVES, STRAIGHT_MOVES};
+use bitboard::{
+    Direction, BLACK_PAWN_ATTACKS, DIAG_MOVES, KING_MOVES, KNIGHT_MOVES, STRAIGHT_MOVES,
+    WHITE_PAWN_ATTACKS,
+};
 pub use components::{Column, Row, Square};
 use mailbox::MailBox;
 
@@ -25,7 +28,7 @@ pub struct Board {
 }
 
 impl Board {
-    fn get_piece_map(&self, figure: Figure) -> BitBoard {
+    pub fn get_pieces(&self, figure: Figure) -> BitBoard {
         match figure {
             Figure::Pawn => self.pawns,
             Figure::Rook => self.rooks,
@@ -35,48 +38,12 @@ impl Board {
             Figure::King => self.kings,
         }
     }
-    fn get_piece_map_mut(&mut self, figure: Figure) -> &mut BitBoard {
-        match figure {
-            Figure::Pawn => &mut self.pawns,
-            Figure::Rook => &mut self.rooks,
-            Figure::Knight => &mut self.knights,
-            Figure::Bishop => &mut self.bishops,
-            Figure::Queen => &mut self.queens,
-            Figure::King => &mut self.kings,
-        }
-    }
 
-    pub fn get_color_map(&self, color: Color) -> BitBoard {
+    pub fn get_colors(&self, color: Color) -> BitBoard {
         match color {
             Color::White => self.white,
             Color::Black => self.black,
         }
-    }
-
-    fn get_color_map_mut(&mut self, color: Color) -> &mut BitBoard {
-        match color {
-            Color::White => &mut self.white,
-            Color::Black => &mut self.black,
-        }
-    }
-
-    fn clear_mask_by_piece(&mut self, mask: BitBoard, piece: Piece) {
-        let clear_mask = !mask;
-        *self.get_piece_map_mut(piece.figure) &= clear_mask;
-        *self.get_color_map_mut(piece.color) &= clear_mask;
-        self.occupied &= clear_mask;
-    }
-
-    fn set_mask_by_piece(&mut self, mask: BitBoard, piece: Piece) {
-        *self.get_piece_map_mut(piece.figure) |= mask;
-        *self.get_color_map_mut(piece.color) |= mask;
-        self.occupied |= mask;
-    }
-
-    fn toggle_mask_by_piece(&mut self, mask: BitBoard, piece: Piece) {
-        *self.get_piece_map_mut(piece.figure) ^= mask;
-        *self.get_color_map_mut(piece.color) ^= mask;
-        self.occupied ^= mask;
     }
 
     pub fn get_square(&self, square: Square) -> Option<Piece> {
@@ -94,8 +61,8 @@ impl Board {
     pub fn set_square(&mut self, square: Square, piece: Piece) -> Option<Piece> {
         let old_piece = self.mailbox.set_square(square, piece);
         let square_mask: BitBoard = square.into();
-        if let Some(old_p) = old_piece {
-            self.clear_mask_by_piece(square_mask, old_p)
+        if let Some(old_piece) = old_piece {
+            self.clear_mask_by_piece(square_mask, old_piece)
         }
         self.set_mask_by_piece(square_mask, piece);
         old_piece
@@ -117,75 +84,38 @@ impl Board {
             }
             Figure::King => self.get_king_moves(square),
         };
-        move_mask & !self.get_color_map(piece.color)
+        move_mask & !self.get_colors(piece.color)
     }
 
-    fn get_pawn_moves(&self, square: Square, color: Color) -> BitBoard {
-        const PAWN_START_WHITE: Row = Row::new(1);
-        const PAWN_START_BLACK: Row = Row::new(6);
-        match color {
-            Color::White => {
-                let mut output_mask = BitBoard::from(square) << 8;
-                output_mask &= !self.occupied;
-                if output_mask.is_empty() {
-                    return output_mask;
-                }
-                if square.get_row() == PAWN_START_WHITE {
-                    output_mask |= (output_mask << 8) & !self.occupied;
-                }
-                output_mask
-            }
-            Color::Black => {
-                let mut output_mask = BitBoard::from(square) >> 8;
-                output_mask &= !self.occupied;
-                if output_mask.is_empty() {
-                    return output_mask;
-                }
-                if square.get_row() == PAWN_START_BLACK {
-                    output_mask |= (output_mask >> 8) & !self.occupied;
-                }
-                output_mask
-            }
+    pub fn is_attacked_by(&self, square: Square, attack_color: Color) -> bool {
+        let attack_mask = self.get_colors(attack_color);
+        let straight_rays = (self.rooks | self.queens) & attack_mask;
+        if (self.get_ray_moves(square, &STRAIGHT_MOVES) & straight_rays).is_not_empty() {
+            return true;
         }
-    }
-
-    fn get_ray_moves(&self, square: Square, rays: &BitBoardRayTable) -> BitBoard {
-        let mut output_mask = EMPTY_BOARD;
-        let ray_masks = rays[usize::from(square)];
-        for dir in [
-            Direction::East,
-            Direction::North,
-            Direction::West,
-            Direction::South,
-        ] {
-            let mut ray_mask = ray_masks[dir as usize];
-            let blocker = match dir {
-                Direction::East | Direction::North => (ray_mask & self.occupied).bitscan_forward(),
-                Direction::West | Direction::South => (ray_mask & self.occupied).bitscan_backward(),
-            };
-            if let Some(blocker) = blocker {
-                ray_mask ^= rays[usize::from(blocker)][dir as usize];
-            }
-            output_mask |= ray_mask;
+        let diag_rays = (self.bishops | self.queens) & attack_mask;
+        if (self.get_ray_moves(square, &DIAG_MOVES) & diag_rays).is_not_empty() {
+            return true;
         }
-        output_mask
+        let knights = self.knights & attack_mask;
+        if (self.get_knight_moves(square) & knights).is_not_empty() {
+            return true;
+        }
+        let pawns = self.pawns & attack_mask;
+        if (self.get_pawn_attacks(square, !attack_color) & pawns).is_not_empty() {
+            return true;
+        }
+        let kings = self.kings & attack_mask;
+        if (self.get_king_moves(square) & kings).is_not_empty() {
+            return true;
+        }
+        false
     }
 
-    pub fn get_knight_moves(&self, square: Square) -> BitBoard {
-        KNIGHT_MOVES[usize::from(square)]
-    }
-
-    pub fn get_king_moves(&self, square: Square) -> BitBoard {
-        KING_MOVES[usize::from(square)]
-    }
-    pub fn get_pin_mask(&self, pin_square: Square, color: Color) -> BitBoard {
-        let king_mask = self.get_color_map(color) & self.kings;
-        let Some(king_square) = king_mask.bitscan_forward() else {
-            return FULL_BOARD;
-        };
+    pub fn get_pin_mask(&self, pin_square: Square, king_square: Square, color: Color) -> BitBoard {
         let pin_square_mask = BitBoard::from(pin_square);
-        let straight_pinner_mask = (self.rooks | self.queens) & self.get_color_map(!color);
-        let diag_pinner_mask = (self.bishops | self.queens) & self.get_color_map(!color);
+        let straight_pinner_mask = (self.rooks | self.queens) & self.get_colors(!color);
+        let diag_pinner_mask = (self.bishops | self.queens) & self.get_colors(!color);
         for (rays_arr, pinner_mask) in [
             (STRAIGHT_MOVES, straight_pinner_mask),
             (DIAG_MOVES, diag_pinner_mask),
@@ -199,11 +129,7 @@ impl Board {
                 Direction::South,
             ] {
                 let king_ray_mask = ray_masks[dir as usize];
-                //println!("king_ray_mask direction: {:#?}", dir);
-                //king_ray_mask.print_board();
                 let check_mask = king_ray_mask & pin_participants;
-                //println!("check_mask");
-                //check_mask.print_board();
                 if check_mask.is_empty() {
                     continue;
                 }
@@ -288,6 +214,98 @@ impl Board {
             fen_row_list.push(fen_row);
         }
         fen_row_list.join("/")
+    }
+
+    fn get_pieces_mut(&mut self, figure: Figure) -> &mut BitBoard {
+        match figure {
+            Figure::Pawn => &mut self.pawns,
+            Figure::Rook => &mut self.rooks,
+            Figure::Knight => &mut self.knights,
+            Figure::Bishop => &mut self.bishops,
+            Figure::Queen => &mut self.queens,
+            Figure::King => &mut self.kings,
+        }
+    }
+
+    fn get_colors_mut(&mut self, color: Color) -> &mut BitBoard {
+        match color {
+            Color::White => &mut self.white,
+            Color::Black => &mut self.black,
+        }
+    }
+
+    fn clear_mask_by_piece(&mut self, mask: BitBoard, piece: Piece) {
+        let clear_mask = !mask;
+        *self.get_pieces_mut(piece.figure) &= clear_mask;
+        *self.get_colors_mut(piece.color) &= clear_mask;
+        self.occupied &= clear_mask;
+    }
+
+    fn set_mask_by_piece(&mut self, mask: BitBoard, piece: Piece) {
+        *self.get_pieces_mut(piece.figure) |= mask;
+        *self.get_colors_mut(piece.color) |= mask;
+        self.occupied |= mask;
+    }
+
+    fn get_pawn_attacks(&self, square: Square, color: Color) -> BitBoard {
+        match color {
+            Color::White => WHITE_PAWN_ATTACKS[usize::from(square)],
+            Color::Black => BLACK_PAWN_ATTACKS[usize::from(square)],
+        }
+    }
+
+    fn get_pawn_moves(&self, square: Square, color: Color) -> BitBoard {
+        const WHITE_PAWN_START: Row = Row::new(1);
+        const BLACK_PAWN_START: Row = Row::new(6);
+        let unoccupied = !self.occupied;
+        match color {
+            Color::White => {
+                let mut output_mask = unoccupied & (BitBoard::from(square) << 8);
+                if (square.get_row() == WHITE_PAWN_START) & output_mask.is_not_empty() {
+                    output_mask |= (output_mask << 8) & unoccupied;
+                }
+                output_mask |= self.occupied & WHITE_PAWN_ATTACKS[usize::from(square)];
+                output_mask
+            }
+            Color::Black => {
+                let mut output_mask = unoccupied & (BitBoard::from(square) >> 8);
+                if (square.get_row() == BLACK_PAWN_START) & output_mask.is_not_empty() {
+                    output_mask |= (output_mask >> 8) & unoccupied;
+                }
+                output_mask |= self.occupied & BLACK_PAWN_ATTACKS[usize::from(square)];
+                output_mask
+            }
+        }
+    }
+
+    fn get_ray_moves(&self, square: Square, rays: &BitBoardRayTable) -> BitBoard {
+        let mut output_mask = EMPTY_BOARD;
+        let ray_masks = rays[usize::from(square)];
+        for dir in [
+            Direction::East,
+            Direction::North,
+            Direction::West,
+            Direction::South,
+        ] {
+            let mut ray_mask = ray_masks[dir as usize];
+            let blocker = match dir {
+                Direction::East | Direction::North => (ray_mask & self.occupied).bitscan_forward(),
+                Direction::West | Direction::South => (ray_mask & self.occupied).bitscan_backward(),
+            };
+            if let Some(blocker) = blocker {
+                ray_mask ^= rays[usize::from(blocker)][dir as usize];
+            }
+            output_mask |= ray_mask;
+        }
+        output_mask
+    }
+
+    fn get_knight_moves(&self, square: Square) -> BitBoard {
+        KNIGHT_MOVES[usize::from(square)]
+    }
+
+    fn get_king_moves(&self, square: Square) -> BitBoard {
+        KING_MOVES[usize::from(square)]
     }
 }
 

@@ -26,6 +26,10 @@ impl BitBoard {
         self.0 == 0
     }
 
+    pub const fn is_not_empty(&self) -> bool {
+        self.0 != 0
+    }
+
     pub fn print_board(&self) {
         let mut char_board: [char; 64] = ['.'; 64];
         for square in self.iter_forward() {
@@ -45,7 +49,14 @@ impl BitBoard {
         BitBoardFwdIter::new(self)
     }
 
-    pub fn bitscan_forward(&self) -> Option<Square> {
+    pub const fn bitscan_forward(&self) -> Option<Square> {
+        match self.0.trailing_zeros() {
+            64 => None,
+            x => Some(Square::new(x as u8)),
+        }
+    }
+
+    pub fn bitscan_forward_debruijn(&self) -> Option<Square> {
         let self_inner: u64 = self.0;
         if self_inner == 0 {
             return None;
@@ -54,7 +65,14 @@ impl BitBoard {
         Some(Square::new(FWDSCAN[lookup_idx as usize]))
     }
 
-    pub fn bitscan_backward(&self) -> Option<Square> {
+    pub const fn bitscan_backward(&self) -> Option<Square> {
+        match self.0.leading_zeros() {
+            64 => None,
+            x => Some(Square::new(63 - x as u8)),
+        }
+    }
+
+    pub fn bitscan_backward_debruijn(&self) -> Option<Square> {
         let mut self_inner: u64 = self.0;
         if self_inner == 0 {
             return None;
@@ -79,6 +97,18 @@ impl BitBoard {
 
     const fn gen_col_mask(col: u8) -> Self {
         Self(0x0101010101010101 << col)
+    }
+
+    const fn gen_white_pawn_mask(self) -> Self {
+        let mut mask = NOT_H_FILE & (self.0 << 7);
+        mask |= NOT_A_FILE & (self.0 << 9);
+        Self(mask)
+    }
+
+    const fn gen_black_pawn_mask(self) -> Self {
+        let mut mask = NOT_H_FILE & (self.0 >> 9);
+        mask |= NOT_A_FILE & (self.0 >> 7);
+        Self(mask)
     }
 
     const fn gen_east_mask(self) -> Self {

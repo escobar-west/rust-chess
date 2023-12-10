@@ -1,5 +1,66 @@
 use super::*;
 use crate::gamestate::DEFAULT_FEN;
+
+fn validate_board(board: Board) {
+    assert!(board.white ^ board.black == board.occupied);
+    assert!(board.white & board.black == EMPTY_BOARD);
+    assert!(
+        board.pawns ^ board.rooks ^ board.knights ^ board.bishops ^ board.queens ^ board.kings
+            == board.occupied
+    );
+    for square in board.white.iter_forward() {
+        assert_eq!(
+            board.mailbox.get_square(square).unwrap().color,
+            Color::White
+        );
+    }
+    for square in board.black.iter_forward() {
+        assert_eq!(
+            board.mailbox.get_square(square).unwrap().color,
+            Color::Black
+        );
+    }
+    for square in board.pawns.iter_forward() {
+        assert_eq!(
+            board.mailbox.get_square(square).unwrap().figure,
+            Figure::Pawn
+        );
+    }
+    for square in board.rooks.iter_forward() {
+        assert_eq!(
+            board.mailbox.get_square(square).unwrap().figure,
+            Figure::Rook
+        );
+    }
+    for square in board.knights.iter_forward() {
+        assert_eq!(
+            board.mailbox.get_square(square).unwrap().figure,
+            Figure::Knight
+        );
+    }
+    for square in board.bishops.iter_forward() {
+        assert_eq!(
+            board.mailbox.get_square(square).unwrap().figure,
+            Figure::Bishop
+        );
+    }
+    for square in board.queens.iter_forward() {
+        assert_eq!(
+            board.mailbox.get_square(square).unwrap().figure,
+            Figure::Queen
+        );
+    }
+    for square in board.kings.iter_forward() {
+        assert_eq!(
+            board.mailbox.get_square(square).unwrap().figure,
+            Figure::King
+        );
+    }
+    for square in (!board.occupied).iter_forward() {
+        assert!(board.mailbox.get_square(square).is_none());
+    }
+}
+
 #[test]
 fn test_default_fen() {
     let fen = DEFAULT_FEN;
@@ -103,12 +164,28 @@ fn test_move_piece() {
     board.move_piece(Square::new(0), Square::new(63));
     let new_fen = board.to_fen();
     assert_eq!(new_fen, "rnbqkbnR/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/1NBQKBNR");
+    validate_board(board);
 }
 
 #[test]
 fn test_pawn_moves() {
-    let fen = "4k3/4p3/5p2/8/8/5P2/4P3/4K3 w - - 0 1";
+    let fen = "4k3/4p3/5pp1/7Q/8/B1r2P2/1P2P3/4K3 w - - 0 1";
     let board = Board::try_from_fen(fen).unwrap();
+    // b2
+    let pawn_sq = Square::try_from_notation("b2").unwrap();
+    let pawn_moves = board.get_move_mask(
+        pawn_sq,
+        Piece {
+            color: Color::White,
+            figure: Figure::Pawn,
+        },
+    );
+    assert_eq!(
+        pawn_moves,
+        BitBoard::from(Square::new(17))
+            | BitBoard::from(Square::new(18))
+            | BitBoard::from(Square::new(25))
+    );
     // e2
     let pawn_sq = Square::try_from_notation("e2").unwrap();
     let pawn_moves = board.get_move_mask(
@@ -185,7 +262,8 @@ fn test_straight_pin_east() {
     let fen = "8/8/6k1/K3B2r/2q5/8/8/8 w - - 0 1";
     let board = Board::try_from_fen(fen).unwrap();
     let pin_sq = Square::new(36);
-    let pin_mask = board.get_pin_mask(pin_sq, Color::White);
+    let king_sq = Square::try_from_notation("a5").unwrap();
+    let pin_mask = board.get_pin_mask(pin_sq, king_sq, Color::White);
     let expected = BitBoard::from(Row::new(4)) ^ Square::new(32).into();
     assert_eq!(pin_mask, expected);
 }
@@ -195,7 +273,8 @@ fn test_straight_no_pin_east() {
     let fen = "8/8/6k1/K2pB2r/2q5/8/8/8 w - - 0 1";
     let board = Board::try_from_fen(fen).unwrap();
     let pin_sq = Square::new(36);
-    let pin_mask = board.get_pin_mask(pin_sq, Color::White);
+    let king_sq = Square::try_from_notation("a5").unwrap();
+    let pin_mask = board.get_pin_mask(pin_sq, king_sq, Color::White);
     let expected = FULL_BOARD;
     assert_eq!(pin_mask, expected);
 }
@@ -205,7 +284,8 @@ fn test_straight_pin_east_north() {
     let fen = "k6q/8/8/4B3/8/8/1K6/8 w - - 0 1";
     let board = Board::try_from_fen(fen).unwrap();
     let pin_sq = Square::new(36);
-    let pin_mask = board.get_pin_mask(pin_sq, Color::White);
+    let king_sq = Square::try_from_notation("b2").unwrap();
+    let pin_mask = board.get_pin_mask(pin_sq, king_sq, Color::White);
     let expected = DIAG_MOVES[9][Direction::East as usize];
     assert_eq!(pin_mask, expected);
 }
@@ -215,7 +295,8 @@ fn test_straight_pin_north() {
     let fen = "qP6/1r6/1P6/1r6/NP6/1r6/1P6/K6k w - - 0 1";
     let board = Board::try_from_fen(fen).unwrap();
     let pin_sq = Square::new(24);
-    let pin_mask = board.get_pin_mask(pin_sq, Color::White);
+    let king_sq = Square::try_from_notation("a1").unwrap();
+    let pin_mask = board.get_pin_mask(pin_sq, king_sq, Color::White);
     let expected = BitBoard::from(Column::new(0)) ^ Square::new(0).into();
     assert_eq!(pin_mask, expected);
 }
@@ -225,7 +306,8 @@ fn test_straight_pin_north_west() {
     let fen = "8/8/2q5/3R4/8/5K2/8/8 w - - 0 1";
     let board = Board::try_from_fen(fen).unwrap();
     let pin_sq = Square::new(35);
-    let pin_mask = board.get_pin_mask(pin_sq, Color::White);
+    let king_sq = Square::try_from_notation("f3").unwrap();
+    let pin_mask = board.get_pin_mask(pin_sq, king_sq, Color::White);
     let expected =
         DIAG_MOVES[21][Direction::North as usize] ^ DIAG_MOVES[42][Direction::North as usize];
     assert_eq!(pin_mask, expected);
@@ -236,7 +318,8 @@ fn test_straight_pin_west() {
     let fen = "4R1nk/8/8/8/8/8/8/K7 w - - 0 1";
     let board = Board::try_from_fen(fen).unwrap();
     let pin_sq = Square::new(62);
-    let pin_mask = board.get_pin_mask(pin_sq, Color::Black);
+    let king_sq = Square::try_from_notation("h8").unwrap();
+    let pin_mask = board.get_pin_mask(pin_sq, king_sq, Color::Black);
     let expected = BitBoard::from(pin_sq) | Square::new(61).into() | Square::new(60).into();
     assert_eq!(pin_mask, expected);
 }
@@ -246,7 +329,8 @@ fn test_straight_pin_west_south() {
     let fen = "5k2/8/8/8/1q6/B7/8/7K b - - 0 1";
     let board = Board::try_from_fen(fen).unwrap();
     let pin_sq = Square::new(25);
-    let pin_mask = board.get_pin_mask(pin_sq, Color::Black);
+    let king_sq = Square::try_from_notation("f8").unwrap();
+    let pin_mask = board.get_pin_mask(pin_sq, king_sq, Color::Black);
     let expected = DIAG_MOVES[61][Direction::West as usize];
     assert_eq!(pin_mask, expected);
 }
@@ -256,7 +340,8 @@ fn test_straight_pin_south() {
     let fen = "5NNn/5Nkn/5RqR/5pRp/5ppp/8/8/K7 b - - 0 1";
     let board = Board::try_from_fen(fen).unwrap();
     let pin_sq = Square::new(46);
-    let pin_mask = board.get_pin_mask(pin_sq, Color::Black);
+    let king_sq = Square::try_from_notation("g7").unwrap();
+    let pin_mask = board.get_pin_mask(pin_sq, king_sq, Color::Black);
     let expected = BitBoard::from(pin_sq) | Square::new(38).into();
     assert_eq!(pin_mask, expected);
 }
@@ -266,7 +351,8 @@ fn test_straight_pin_south_east() {
     let fen = "8/1k6/8/8/4p3/5Q2/6K1/8 b - - 0 1";
     let board = Board::try_from_fen(fen).unwrap();
     let pin_sq = Square::new(28);
-    let pin_mask = board.get_pin_mask(pin_sq, Color::Black);
+    let king_sq = Square::try_from_notation("b7").unwrap();
+    let pin_mask = board.get_pin_mask(pin_sq, king_sq, Color::Black);
     let expected =
         DIAG_MOVES[49][Direction::South as usize] ^ DIAG_MOVES[21][Direction::South as usize];
     assert_eq!(pin_mask, expected);

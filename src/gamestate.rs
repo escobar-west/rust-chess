@@ -62,11 +62,19 @@ pub struct GameState {
     turn: Color,
     castle: CastleRights,
     ep: Option<Square>,
-    halfmoves: u32,
-    fullmoves: u32,
+    half_moves: u32,
+    full_moves: u32,
+    white_king: Square,
+    black_king: Square,
 }
 
 impl GameState {
+    pub fn get_king(&self, color: Color) -> Square {
+        match color {
+            Color::White => self.white_king,
+            Color::Black => self.black_king,
+        }
+    }
     pub fn get_legal_moves_at_square(&self, square: Square) -> BitBoard {
         let board = &self.board;
         let Some(piece) = board.get_square(square) else {
@@ -76,7 +84,7 @@ impl GameState {
             return EMPTY_BOARD;
         }
         let move_mask = board.get_move_mask(square, piece);
-        let pin_mask = board.get_pin_mask(square, piece.color);
+        let pin_mask = board.get_pin_mask(square, self.get_king(piece.color), piece.color);
         move_mask & pin_mask
     }
 
@@ -88,12 +96,12 @@ impl GameState {
         }
         let captured_piece = self.board.move_piece(from, to);
         if captured_piece.is_some() {
-            self.halfmoves = 0;
+            self.half_moves = 0;
         } else {
-            self.halfmoves += 1;
+            self.half_moves += 1;
         }
         if self.turn == Color::Black {
-            self.fullmoves += 1;
+            self.full_moves += 1;
         }
         self.turn = !self.turn;
         Ok(captured_piece)
@@ -120,17 +128,29 @@ impl GameState {
             None => return Err("Invalid Fen"),
         };
 
-        let halfmoves = fen_iter.next().map(|x| x.parse::<u32>()).unwrap().unwrap();
+        let half_moves = fen_iter.next().map(|x| x.parse::<u32>()).unwrap().unwrap();
 
-        let fullmoves = fen_iter.next().map(|x| x.parse::<u32>()).unwrap().unwrap();
+        let full_moves = fen_iter.next().map(|x| x.parse::<u32>()).unwrap().unwrap();
+
+        let white_king = (board.get_pieces(Figure::King) & board.get_colors(Color::White))
+            .iter_forward()
+            .next()
+            .unwrap();
+
+        let black_king = (board.get_pieces(Figure::King) & board.get_colors(Color::Black))
+            .iter_forward()
+            .next()
+            .unwrap();
 
         Ok(Self {
             board,
             turn,
             castle,
             ep,
-            halfmoves,
-            fullmoves,
+            half_moves,
+            full_moves,
+            white_king,
+            black_king,
         })
     }
 
@@ -161,11 +181,11 @@ impl GameState {
         fen.push(' ');
 
         // halfmove
-        fen.push_str(&self.halfmoves.to_string());
+        fen.push_str(&self.half_moves.to_string());
         fen.push(' ');
 
         // fullmove
-        fen.push_str(&self.fullmoves.to_string());
+        fen.push_str(&self.full_moves.to_string());
 
         fen
     }
@@ -188,8 +208,19 @@ mod tests {
         assert_eq!(gs.turn, Color::White);
         assert_eq!(gs.castle, CastleRights::new(true, true, true, true));
         assert_eq!(gs.ep, None);
-        assert_eq!(gs.halfmoves, 0);
-        assert_eq!(gs.fullmoves, 1);
+        assert_eq!(gs.half_moves, 0);
+        assert_eq!(gs.full_moves, 1);
+    }
+
+    #[test]
+    fn test_scen_1() {
+        let mut gs = GameState::default();
+        for m in ["e2e4", "d7d5", "e4d5", "g8f6", "f1a6", "d8d6"] {
+            let move_ = Move::try_from_notation(m).unwrap();
+            gs.make_move(move_).unwrap();
+        }
+        let expected_fen = "rnb1kb1r/ppp1pppp/B2q1n2/3P4/8/8/PPPP1PPP/RNBQK1NR w KQkq - 3 4";
+        assert_eq!(gs.to_fen(), expected_fen);
     }
 
     #[test]

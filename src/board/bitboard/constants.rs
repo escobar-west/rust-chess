@@ -58,6 +58,10 @@ pub static COLUMNS: [BitBoard; 8] = [
 
 pub static SQUARES: [BitBoard; 64] = gen_squares();
 
+pub static WHITE_PAWN_ATTACKS: [BitBoard; 64] = gen_white_pawn_attacks();
+
+pub static BLACK_PAWN_ATTACKS: [BitBoard; 64] = gen_black_pawn_attacks();
+
 pub static STRAIGHT_MOVES: [[BitBoard; 4]; 64] = gen_straight_moves();
 
 pub static DIAG_MOVES: [[BitBoard; 4]; 64] = gen_diag_moves();
@@ -71,6 +75,28 @@ const fn gen_squares() -> [BitBoard; 64] {
     let mut counter = 0;
     while counter < 64 {
         array[counter as usize] = BitBoard::gen_square_mask(counter);
+        counter += 1;
+    }
+    array
+}
+
+const fn gen_white_pawn_attacks() -> [BitBoard; 64] {
+    let mut array = [EMPTY_BOARD; 64];
+    let mut counter = 0;
+    while counter < 64 {
+        let square = BitBoard::gen_square_mask(counter);
+        array[counter as usize] = square.gen_white_pawn_mask();
+        counter += 1;
+    }
+    array
+}
+
+const fn gen_black_pawn_attacks() -> [BitBoard; 64] {
+    let mut array = [EMPTY_BOARD; 64];
+    let mut counter = 0;
+    while counter < 64 {
+        let square = BitBoard::gen_square_mask(counter);
+        array[counter as usize] = square.gen_black_pawn_mask();
         counter += 1;
     }
     array
