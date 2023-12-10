@@ -106,6 +106,58 @@ fn test_move_piece() {
 }
 
 #[test]
+fn test_pawn_moves() {
+    let fen = "4k3/4p3/5p2/8/8/5P2/4P3/4K3 w - - 0 1";
+    let board = Board::try_from_fen(fen).unwrap();
+    // e2
+    let pawn_sq = Square::try_from_notation("e2").unwrap();
+    let pawn_moves = board.get_move_mask(
+        pawn_sq,
+        Piece {
+            color: Color::White,
+            figure: Figure::Pawn,
+        },
+    );
+    assert_eq!(
+        pawn_moves,
+        BitBoard::from(Square::new(20)) | BitBoard::from(Square::new(28))
+    );
+    // f3
+    let pawn_sq = Square::try_from_notation("f3").unwrap();
+    let pawn_moves = board.get_move_mask(
+        pawn_sq,
+        Piece {
+            color: Color::White,
+            figure: Figure::Pawn,
+        },
+    );
+    assert_eq!(pawn_moves, BitBoard::from(Square::new(29)));
+    // e7
+    let pawn_sq = Square::try_from_notation("e7").unwrap();
+    let pawn_moves = board.get_move_mask(
+        pawn_sq,
+        Piece {
+            color: Color::Black,
+            figure: Figure::Pawn,
+        },
+    );
+    assert_eq!(
+        pawn_moves,
+        BitBoard::from(Square::new(36)) | BitBoard::from(Square::new(44))
+    );
+    // f6
+    let pawn_sq = Square::try_from_notation("f6").unwrap();
+    let pawn_moves = board.get_move_mask(
+        pawn_sq,
+        Piece {
+            color: Color::Black,
+            figure: Figure::Pawn,
+        },
+    );
+    assert_eq!(pawn_moves, BitBoard::from(Square::new(37)));
+}
+
+#[test]
 fn test_rook_moves() {
     let fen = "8/8/3r4/1R1R1R2/8/3R4/8/8 w - - 0 1";
     let board = Board::try_from_fen(fen).unwrap();

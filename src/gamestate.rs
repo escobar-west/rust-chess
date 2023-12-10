@@ -33,7 +33,7 @@ impl CastleRights {
         Ok(Self::new(wk, wq, bk, bq))
     }
 
-    fn to_fen(&self) -> String {
+    fn to_fen(self) -> String {
         let fen = match self.0 {
             0 => "-",
             1 => "K",

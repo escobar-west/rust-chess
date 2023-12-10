@@ -4,7 +4,7 @@ use super::bitboard::{BitBoard, COLUMNS, ROWS, SQUARES};
 pub struct Row(u8);
 
 impl Row {
-    pub fn new(value: u8) -> Self {
+    pub const fn new(value: u8) -> Self {
         assert!(value & 7 == value);
         Self(value)
     }
@@ -20,7 +20,7 @@ impl From<Row> for BitBoard {
 pub struct Column(u8);
 
 impl Column {
-    pub fn new(value: u8) -> Self {
+    pub const fn new(value: u8) -> Self {
         assert!(value & 7 == value);
         Self(value)
     }
@@ -39,6 +39,10 @@ impl Square {
     pub const fn new(value: u8) -> Self {
         assert!(value & 63 == value);
         Self(value)
+    }
+
+    pub const fn get_row(self) -> Row {
+        Row(self.0 >> 3)
     }
 
     pub const fn from_coords(row: Row, col: Column) -> Self {
