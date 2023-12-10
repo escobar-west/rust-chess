@@ -106,20 +106,25 @@ fn test_move_piece() {
 }
 
 #[test]
-fn test_rook_moves_on_board() {
-    let fen = DEFAULT_FEN;
-    let mut board = Board::try_from_fen(fen).unwrap();
-    board.set_square(
-        Square::new(0),
+fn test_rook_moves() {
+    let fen = "8/8/3r4/1R1R1R2/8/3R4/8/8 w - - 0 1";
+    let board = Board::try_from_fen(fen).unwrap();
+    let rook_sq = Square::try_from_notation("d5").unwrap();
+
+    let rook_moves = board.get_move_mask(
+        rook_sq,
         Piece {
-            color: Color::Black,
+            color: Color::White,
             figure: Figure::Rook,
         },
     );
-    let rook_moves = board.get_legal_moves_at_square_no_check(Square::new(0));
     assert_eq!(
         rook_moves,
-        BitBoard::from(Square::new(1)) | BitBoard::from(Square::new(8))
+        ((STRAIGHT_MOVES[33][Direction::East as usize]
+            & STRAIGHT_MOVES[37][Direction::West as usize])
+            | (STRAIGHT_MOVES[19][Direction::North as usize]
+                & STRAIGHT_MOVES[51][Direction::South as usize]))
+            ^ rook_sq.into()
     );
 }
 

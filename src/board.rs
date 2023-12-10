@@ -3,12 +3,12 @@ mod components;
 mod mailbox;
 
 use crate::pieces::{Color, Figure, Piece};
-use bitboard::{
-    BitBoard, Direction, DIAG_MOVES, EMPTY_BOARD, FULL_BOARD, KING_MOVES, KNIGHT_MOVES,
-    STRAIGHT_MOVES,
-};
+pub use bitboard::{BitBoard, EMPTY_BOARD, FULL_BOARD};
+use bitboard::{Direction, DIAG_MOVES, KING_MOVES, KNIGHT_MOVES, STRAIGHT_MOVES};
 pub use components::{Column, Row, Square};
 use mailbox::MailBox;
+
+type BitBoardRayTable = [[BitBoard; 4]; 64];
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Board {
@@ -46,7 +46,7 @@ impl Board {
         }
     }
 
-    fn get_color_map(&self, color: Color) -> BitBoard {
+    pub fn get_color_map(&self, color: Color) -> BitBoard {
         match color {
             Color::White => self.white,
             Color::Black => self.black,
@@ -105,22 +105,22 @@ impl Board {
         self.clear_square(from).and_then(|p| self.set_square(to, p))
     }
 
-    pub fn get_legal_moves_at_square_no_check(&self, square: Square) -> BitBoard {
-        let Some(piece) = self.get_square(square) else {
-            return EMPTY_BOARD;
-        };
+    pub fn get_move_mask(&self, square: Square, piece: Piece) -> BitBoard {
         let move_mask = match piece.figure {
             Figure::Rook => self.get_ray_moves(square, &STRAIGHT_MOVES),
             Figure::Knight => self.get_knight_moves(square),
             Figure::Bishop => self.get_ray_moves(square, &DIAG_MOVES),
+            Figure::Queen => {
+                self.get_ray_moves(square, &STRAIGHT_MOVES)
+                    | self.get_ray_moves(square, &DIAG_MOVES)
+            }
             Figure::King => self.get_king_moves(square),
             _ => EMPTY_BOARD,
         };
-        let pin_mask = self.get_pin_mask(square, piece.color);
-        move_mask & !self.get_color_map(piece.color) & pin_mask
+        move_mask & !self.get_color_map(piece.color)
     }
 
-    pub fn get_ray_moves(&self, square: Square, rays: &[[BitBoard; 4]; 64]) -> BitBoard {
+    fn get_ray_moves(&self, square: Square, rays: &BitBoardRayTable) -> BitBoard {
         let mut output_mask = EMPTY_BOARD;
         let ray_masks = rays[usize::from(square)];
         for dir in [
@@ -130,12 +130,12 @@ impl Board {
             Direction::South,
         ] {
             let mut ray_mask = ray_masks[dir as usize];
-            let first_blocker = match dir {
+            let blocker = match dir {
                 Direction::East | Direction::North => (ray_mask & self.occupied).bitscan_forward(),
                 Direction::West | Direction::South => (ray_mask & self.occupied).bitscan_backward(),
             };
-            if let Some(first_blocker) = first_blocker {
-                ray_mask ^= rays[usize::from(first_blocker)][dir as usize];
+            if let Some(blocker) = blocker {
+                ray_mask ^= rays[usize::from(blocker)][dir as usize];
             }
             output_mask |= ray_mask;
         }
@@ -149,7 +149,7 @@ impl Board {
     pub fn get_king_moves(&self, square: Square) -> BitBoard {
         KING_MOVES[usize::from(square)]
     }
-    fn get_pin_mask(&self, pin_square: Square, color: Color) -> BitBoard {
+    pub fn get_pin_mask(&self, pin_square: Square, color: Color) -> BitBoard {
         let king_mask = self.get_color_map(color) & self.kings;
         let Some(king_square) = king_mask.bitscan_forward() else {
             return FULL_BOARD;
@@ -170,11 +170,11 @@ impl Board {
                 Direction::South,
             ] {
                 let king_ray_mask = ray_masks[dir as usize];
-                println!("king_ray_mask direction: {:#?}", dir);
-                king_ray_mask.print_board();
+                //println!("king_ray_mask direction: {:#?}", dir);
+                //king_ray_mask.print_board();
                 let check_mask = king_ray_mask & pin_participants;
-                println!("check_mask");
-                check_mask.print_board();
+                //println!("check_mask");
+                //check_mask.print_board();
                 if check_mask.is_empty() {
                     continue;
                 }

@@ -45,6 +45,17 @@ impl Square {
         Self(col.0 + 8 * row.0)
     }
 
+    pub fn to_notation(self) -> String {
+        let col = self.0 & 7;
+        let row = self.0 >> 3;
+        let col_char = char::from_u32(97 + col as u32).unwrap();
+        let row_char = char::from_u32(49 + row as u32).unwrap();
+        let mut notation = String::with_capacity(2);
+        notation.push(col_char);
+        notation.push(row_char);
+        notation
+    }
+
     pub fn try_from_notation(coords: &str) -> Result<Self, &'static str> {
         let mut iter = coords.chars();
         let col = match iter.next() {
