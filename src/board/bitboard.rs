@@ -30,6 +30,36 @@ impl BitBoard {
         self.0 != 0
     }
 
+    pub const fn bitscan_forward(&self) -> Option<Square> {
+        match self.0.trailing_zeros() {
+            64 => None,
+            x => Some(Square::new(x as u8)),
+        }
+    }
+
+    pub const fn bitscan_backward(&self) -> Option<Square> {
+        match self.0.leading_zeros() {
+            64 => None,
+            x => Some(Square::new(63 - x as u8)),
+        }
+    }
+
+    pub fn iter_forward(&self) -> BitBoardFwdIter<'_> {
+        BitBoardFwdIter::new(self)
+    }
+
+    pub const fn gen_white_pawn_mask(self) -> Self {
+        let mut mask = NOT_H_FILE & (self.0 << 7);
+        mask |= NOT_A_FILE & (self.0 << 9);
+        Self(mask)
+    }
+
+    pub const fn gen_black_pawn_mask(self) -> Self {
+        let mut mask = NOT_H_FILE & (self.0 >> 9);
+        mask |= NOT_A_FILE & (self.0 >> 7);
+        Self(mask)
+    }
+
     pub fn print_board(&self) {
         let mut char_board: [char; 64] = ['.'; 64];
         for square in self.iter_forward() {
@@ -45,24 +75,6 @@ impl BitBoard {
         println!("{}", out_str);
     }
 
-    pub fn iter_forward(&self) -> BitBoardFwdIter<'_> {
-        BitBoardFwdIter::new(self)
-    }
-
-    pub const fn bitscan_forward(&self) -> Option<Square> {
-        match self.0.trailing_zeros() {
-            64 => None,
-            x => Some(Square::new(x as u8)),
-        }
-    }
-
-    pub const fn bitscan_backward(&self) -> Option<Square> {
-        match self.0.leading_zeros() {
-            64 => None,
-            x => Some(Square::new(63 - x as u8)),
-        }
-    }
-
     const fn gen_sq_mask(square: u64) -> Self {
         Self(1 << square)
     }
@@ -73,18 +85,6 @@ impl BitBoard {
 
     const fn gen_col_mask(col: u8) -> Self {
         Self(0x0101010101010101 << col)
-    }
-
-    const fn gen_white_pawn_mask(self) -> Self {
-        let mut mask = NOT_H_FILE & (self.0 << 7);
-        mask |= NOT_A_FILE & (self.0 << 9);
-        Self(mask)
-    }
-
-    const fn gen_black_pawn_mask(self) -> Self {
-        let mut mask = NOT_H_FILE & (self.0 >> 9);
-        mask |= NOT_A_FILE & (self.0 >> 7);
-        Self(mask)
     }
 
     const fn gen_east_mask(self) -> Self {

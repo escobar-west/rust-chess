@@ -11,6 +11,8 @@ use bitboard::{
 pub use components::{Column, Row, Square};
 use mailbox::MailBox;
 
+use self::bitboard::NOT_H_FILE;
+
 type BitBoardRayTable = [[BitBoard; 4]; 64];
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -87,13 +89,10 @@ impl Board {
     pub fn get_move_mask(&self, square: Square, piece: Piece) -> BitBoard {
         let move_mask = match piece.figure {
             Figure::Pawn => self.get_pawn_moves(square, piece.color),
-            Figure::Rook => self.get_ray_moves(square, &STRAIGHT_MOVES),
+            Figure::Rook => self.get_straight_moves(square),
             Figure::Knight => self.get_knight_moves(square),
-            Figure::Bishop => self.get_ray_moves(square, &DIAG_MOVES),
-            Figure::Queen => {
-                self.get_ray_moves(square, &STRAIGHT_MOVES)
-                    | self.get_ray_moves(square, &DIAG_MOVES)
-            }
+            Figure::Bishop => self.get_diag_moves(square),
+            Figure::Queen => self.get_straight_moves(square) | self.get_diag_moves(square),
             Figure::King => self.get_king_moves(square),
         };
         move_mask & !self.get_color_mask(piece.color)
@@ -102,11 +101,11 @@ impl Board {
     pub fn is_attacked_by(&self, square: Square, attack_color: Color) -> bool {
         let attackers = self.get_all_pieces(attack_color);
         let straight_pieces = attackers.rooks | attackers.queens;
-        if (self.get_ray_moves(square, &STRAIGHT_MOVES) & straight_pieces).is_not_empty() {
+        if (self.get_straight_moves(square) & straight_pieces).is_not_empty() {
             return true;
         }
         let diag_pieces = attackers.bishops | attackers.queens;
-        if (self.get_ray_moves(square, &DIAG_MOVES) & diag_pieces).is_not_empty() {
+        if (self.get_diag_moves(square) & diag_pieces).is_not_empty() {
             return true;
         }
         if (self.get_knight_moves(square) & attackers.knights).is_not_empty() {
@@ -301,8 +300,12 @@ impl Board {
         }
     }
 
-    fn get_ray_moves(&self, square: Square, rays: &BitBoardRayTable) -> BitBoard {
-        get_ray_moves_with_occupied(square, rays, self.occupied)
+    fn get_straight_moves(&self, square: Square) -> BitBoard {
+        get_ray_moves_with_occupied(square, &STRAIGHT_MOVES, self.occupied)
+    }
+
+    fn get_diag_moves(&self, square: Square) -> BitBoard {
+        get_ray_moves_with_occupied(square, &DIAG_MOVES, self.occupied)
     }
 
     fn get_knight_moves(&self, square: Square) -> BitBoard {
@@ -311,6 +314,28 @@ impl Board {
 
     fn get_king_moves(&self, square: Square) -> BitBoard {
         KING_MOVES[usize::from(square)]
+    }
+
+    pub fn get_safe_king_moves(&self, square: Square, king_color: Color) -> BitBoard {
+        let mut illegal_mask = !self.get_king_moves(square);
+        let occ_mask = self.occupied & !BitBoard::from(square);
+        let attackers = self.get_all_pieces(!king_color);
+        let straight_pieces = attackers.rooks | attackers.queens;
+        for attack_sq in straight_pieces.iter_forward() {
+            illegal_mask |= get_ray_moves_with_occupied(attack_sq, &STRAIGHT_MOVES, occ_mask);
+        }
+        let diag_pieces = attackers.bishops | attackers.queens;
+        for attack_sq in diag_pieces.iter_forward() {
+            illegal_mask |= get_ray_moves_with_occupied(attack_sq, &DIAG_MOVES, occ_mask);
+        }
+        for attack_sq in attackers.knights.iter_forward() {
+            illegal_mask |= self.get_knight_moves(attack_sq)
+        }
+        match king_color {
+            Color::White => illegal_mask | attackers.pawns.gen_black_pawn_mask(),
+            Color::Black => illegal_mask | attackers.pawns.gen_white_pawn_mask(),
+        };
+        !illegal_mask
     }
 }
 
