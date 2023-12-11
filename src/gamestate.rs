@@ -86,7 +86,7 @@ impl GameState {
         if piece.color != self.turn {
             return EMPTY_BOARD;
         }
-        let move_mask = board.get_move_mask(square, piece);
+        let move_mask = board.get_piece_move_mask(square, piece);
         let pin_mask = board.get_pin_mask(square, self.get_king_sq(piece.color), piece.color);
         move_mask & pin_mask
     }
@@ -127,7 +127,7 @@ impl GameState {
 
         let ep: Option<Square> = match fen_iter.next() {
             Some("-") => None,
-            Some(coords) => Some(Square::try_from_notation(coords)?),
+            Some(coords) => Some(Square::try_from_alg(coords)?),
             None => return Err("Invalid Fen"),
         };
         let half_moves = fen_iter.next().map(|x| x.parse::<u32>()).unwrap().unwrap();
@@ -176,7 +176,7 @@ impl GameState {
 
         // en passant
         match self.ep {
-            Some(s) => fen.push_str(&s.to_notation()),
+            Some(s) => fen.push_str(&s.to_alg()),
             None => fen.push('-'),
         }
         fen.push(' ');
@@ -217,7 +217,7 @@ mod tests {
     fn test_scen_1() {
         let mut gs = GameState::default();
         for m in ["e2e4", "d7d5", "e4d5", "g8f6", "f1a6", "d8d6"] {
-            let move_ = Move::try_from_notation(m).unwrap();
+            let move_ = Move::from_alg(m);
             gs.make_move(move_).unwrap();
         }
         let expected_fen = "rnb1kb1r/ppp1pppp/B2q1n2/3P4/8/8/PPPP1PPP/RNBQK1NR w KQkq - 3 4";
@@ -230,12 +230,12 @@ mod tests {
         let mut gs = GameState::try_from_fen(fen).unwrap();
 
         //Illegal bishop move (wrong color)
-        let move_ = Move::try_from_notation("b5a6").unwrap();
+        let move_ = Move::from_alg("b5a6");
         let error = gs.make_move(move_);
         assert_eq!(error, Err("Illegal Move"));
 
         //Rook take rook
-        let move_ = Move::try_from_notation("d1d5").unwrap();
+        let move_ = Move::from_alg("d1d5");
         let piece = gs.make_move(move_).unwrap();
         assert_eq!(
             piece,
@@ -246,24 +246,24 @@ mod tests {
         );
 
         //Bishop pin
-        let move_ = Move::try_from_notation("b5c6").unwrap();
+        let move_ = Move::from_alg("b5c6");
         let _ = gs.make_move(move_).unwrap();
 
         //Illegal rook move (pinned)
-        let move_ = Move::try_from_notation("d5d7").unwrap();
+        let move_ = Move::from_alg("d5d7");
         let error = gs.make_move(move_);
         assert_eq!(error, Err("Illegal Move"));
 
         //Break pin
-        let move_ = Move::try_from_notation("g4f3").unwrap();
+        let move_ = Move::from_alg("g4f3");
         let _ = gs.make_move(move_).unwrap();
 
         //Random rook move
-        let move_ = Move::try_from_notation("a7d7").unwrap();
+        let move_ = Move::from_alg("a7d7");
         let _ = gs.make_move(move_).unwrap();
 
         //Legal rook move (not pinned)
-        let move_ = Move::try_from_notation("d5d7").unwrap();
+        let move_ = Move::from_alg("d5d7");
         let piece = gs.make_move(move_).unwrap();
         assert_eq!(
             piece,
@@ -274,7 +274,7 @@ mod tests {
         );
 
         //Bishop takes rook
-        let move_ = Move::try_from_notation("c6d7").unwrap();
+        let move_ = Move::from_alg("c6d7");
         let piece = gs.make_move(move_).unwrap();
         assert_eq!(
             piece,

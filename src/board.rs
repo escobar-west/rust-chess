@@ -86,7 +86,7 @@ impl Board {
         self.clear_sq(from).and_then(|p| self.set_sq(to, p))
     }
 
-    pub fn get_move_mask(&self, square: Square, piece: Piece) -> BitBoard {
+    pub fn get_piece_move_mask(&self, square: Square, piece: Piece) -> BitBoard {
         let move_mask = match piece.figure {
             Figure::Pawn => self.get_pawn_moves(square, piece.color),
             Figure::Rook => self.get_straight_moves(square),
@@ -98,26 +98,26 @@ impl Board {
         move_mask & !self.get_color_mask(piece.color)
     }
 
-    pub fn is_attacked_by(&self, square: Square, attack_color: Color) -> bool {
-        let attackers = self.get_all_pieces(attack_color);
+    pub fn get_safe_king_mask(&self, square: Square, king_color: Color) -> BitBoard {
+        let mut illegal_mask = !self.get_king_moves(square);
+        let occ_mask = self.occupied & !BitBoard::from(square);
+        let attackers = self.get_all_pieces(!king_color);
         let straight_pieces = attackers.rooks | attackers.queens;
-        if (self.get_straight_moves(square) & straight_pieces).is_not_empty() {
-            return true;
+        for attack_sq in straight_pieces.iter_forward() {
+            illegal_mask |= get_ray_moves_with_occupied(attack_sq, &STRAIGHT_MOVES, occ_mask);
         }
         let diag_pieces = attackers.bishops | attackers.queens;
-        if (self.get_diag_moves(square) & diag_pieces).is_not_empty() {
-            return true;
+        for attack_sq in diag_pieces.iter_forward() {
+            illegal_mask |= get_ray_moves_with_occupied(attack_sq, &DIAG_MOVES, occ_mask);
         }
-        if (self.get_knight_moves(square) & attackers.knights).is_not_empty() {
-            return true;
+        for attack_sq in attackers.knights.iter_forward() {
+            illegal_mask |= self.get_knight_moves(attack_sq)
         }
-        if (self.get_pawn_attacks(square, !attack_color) & attackers.pawns).is_not_empty() {
-            return true;
-        }
-        if (self.get_king_moves(square) & attackers.kings).is_not_empty() {
-            return true;
-        }
-        false
+        match king_color {
+            Color::White => illegal_mask |= attackers.pawns.gen_black_pawn_mask(),
+            Color::Black => illegal_mask |= attackers.pawns.gen_white_pawn_mask(),
+        };
+        !illegal_mask
     }
 
     pub fn get_pin_mask(&self, pin_sq: Square, target_sq: Square, target_color: Color) -> BitBoard {
@@ -172,6 +172,28 @@ impl Board {
             }
         }
         FULL_BOARD
+    }
+
+    pub fn is_attacked_by(&self, square: Square, attack_color: Color) -> bool {
+        let attackers = self.get_all_pieces(attack_color);
+        let straight_pieces = attackers.rooks | attackers.queens;
+        if (self.get_straight_moves(square) & straight_pieces).is_not_empty() {
+            return true;
+        }
+        let diag_pieces = attackers.bishops | attackers.queens;
+        if (self.get_diag_moves(square) & diag_pieces).is_not_empty() {
+            return true;
+        }
+        if (self.get_knight_moves(square) & attackers.knights).is_not_empty() {
+            return true;
+        }
+        if (self.get_pawn_attacks(square, !attack_color) & attackers.pawns).is_not_empty() {
+            return true;
+        }
+        if (self.get_king_moves(square) & attackers.kings).is_not_empty() {
+            return true;
+        }
+        false
     }
 
     pub fn try_from_fen(fen: &str) -> Result<Self, &'static str> {
@@ -314,28 +336,6 @@ impl Board {
 
     fn get_king_moves(&self, square: Square) -> BitBoard {
         KING_MOVES[usize::from(square)]
-    }
-
-    pub fn get_safe_king_moves(&self, square: Square, king_color: Color) -> BitBoard {
-        let mut illegal_mask = !self.get_king_moves(square);
-        let occ_mask = self.occupied & !BitBoard::from(square);
-        let attackers = self.get_all_pieces(!king_color);
-        let straight_pieces = attackers.rooks | attackers.queens;
-        for attack_sq in straight_pieces.iter_forward() {
-            illegal_mask |= get_ray_moves_with_occupied(attack_sq, &STRAIGHT_MOVES, occ_mask);
-        }
-        let diag_pieces = attackers.bishops | attackers.queens;
-        for attack_sq in diag_pieces.iter_forward() {
-            illegal_mask |= get_ray_moves_with_occupied(attack_sq, &DIAG_MOVES, occ_mask);
-        }
-        for attack_sq in attackers.knights.iter_forward() {
-            illegal_mask |= self.get_knight_moves(attack_sq)
-        }
-        match king_color {
-            Color::White => illegal_mask | attackers.pawns.gen_black_pawn_mask(),
-            Color::Black => illegal_mask | attackers.pawns.gen_white_pawn_mask(),
-        };
-        !illegal_mask
     }
 }
 

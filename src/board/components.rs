@@ -49,7 +49,7 @@ impl Square {
         Self(col.0 + 8 * row.0)
     }
 
-    pub fn to_notation(self) -> String {
+    pub fn to_alg(self) -> String {
         let col = self.0 & 7;
         let row = self.0 >> 3;
         let col_char = char::from_u32(97 + col as u32).unwrap();
@@ -60,7 +60,7 @@ impl Square {
         notation
     }
 
-    pub fn try_from_notation(coords: &str) -> Result<Self, &'static str> {
+    pub fn try_from_alg(coords: &str) -> Result<Self, &'static str> {
         let mut iter = coords.chars();
         let col = match iter.next() {
             Some(c @ 'a'..='h') => u32::from(c) - 97u32,
@@ -71,6 +71,11 @@ impl Square {
             _ => return Err("invalid row"),
         };
         Ok(Square::new((col + 8 * row) as u8))
+    }
+
+    #[cfg(test)]
+    pub fn from_alg(coords: &str) -> Self {
+        Self::try_from_alg(coords).unwrap()
     }
 }
 
