@@ -56,35 +56,11 @@ impl BitBoard {
         }
     }
 
-    pub fn bitscan_forward_debruijn(&self) -> Option<Square> {
-        let self_inner: u64 = self.0;
-        if self_inner == 0 {
-            return None;
-        }
-        let lookup_idx = DEBRUIJN64.wrapping_mul(self_inner & self_inner.wrapping_neg()) >> 58;
-        Some(Square::new(FWDSCAN[lookup_idx as usize]))
-    }
-
     pub const fn bitscan_backward(&self) -> Option<Square> {
         match self.0.leading_zeros() {
             64 => None,
             x => Some(Square::new(63 - x as u8)),
         }
-    }
-
-    pub fn bitscan_backward_debruijn(&self) -> Option<Square> {
-        let mut self_inner: u64 = self.0;
-        if self_inner == 0 {
-            return None;
-        }
-        self_inner |= self_inner >> 1;
-        self_inner |= self_inner >> 2;
-        self_inner |= self_inner >> 4;
-        self_inner |= self_inner >> 8;
-        self_inner |= self_inner >> 16;
-        self_inner |= self_inner >> 32;
-        let lookup_idx = self_inner.wrapping_mul(DEBRUIJN64) >> 58;
-        Some(Square::new(BACKSCAN[lookup_idx as usize]))
     }
 
     const fn gen_sq_mask(square: u64) -> Self {
