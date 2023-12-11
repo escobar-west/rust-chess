@@ -132,8 +132,16 @@ impl GameState {
         };
         let half_moves = fen_iter.next().map(|x| x.parse::<u32>()).unwrap().unwrap();
         let full_moves = fen_iter.next().map(|x| x.parse::<u32>()).unwrap().unwrap();
-        let white_king = board.get_pieces(WHITE_KING).iter_forward().next().unwrap();
-        let black_king = board.get_pieces(BLACK_KING).iter_forward().next().unwrap();
+        let white_king = board
+            .get_piece_mask(WHITE_KING)
+            .iter_forward()
+            .next()
+            .unwrap();
+        let black_king = board
+            .get_piece_mask(BLACK_KING)
+            .iter_forward()
+            .next()
+            .unwrap();
 
         Ok(Self {
             board,
