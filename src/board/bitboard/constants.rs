@@ -56,7 +56,7 @@ pub static COLUMNS: [BitBoard; 8] = [
     BitBoard::gen_col_mask(7),
 ];
 
-pub static SQUARES: [BitBoard; 64] = gen_squares();
+pub static SQUARES: [BitBoard; 64] = gen_sqs();
 
 pub static WHITE_PAWN_ATTACKS: [BitBoard; 64] = gen_white_pawn_attacks();
 
@@ -70,11 +70,11 @@ pub static KNIGHT_MOVES: [BitBoard; 64] = gen_knight_moves();
 
 pub static KING_MOVES: [BitBoard; 64] = gen_king_moves();
 
-const fn gen_squares() -> [BitBoard; 64] {
+const fn gen_sqs() -> [BitBoard; 64] {
     let mut array = [EMPTY_BOARD; 64];
     let mut counter = 0;
     while counter < 64 {
-        array[counter as usize] = BitBoard::gen_square_mask(counter);
+        array[counter as usize] = BitBoard::gen_sq_mask(counter);
         counter += 1;
     }
     array
@@ -84,7 +84,7 @@ const fn gen_white_pawn_attacks() -> [BitBoard; 64] {
     let mut array = [EMPTY_BOARD; 64];
     let mut counter = 0;
     while counter < 64 {
-        let square = BitBoard::gen_square_mask(counter);
+        let square = BitBoard::gen_sq_mask(counter);
         array[counter as usize] = square.gen_white_pawn_mask();
         counter += 1;
     }
@@ -95,7 +95,7 @@ const fn gen_black_pawn_attacks() -> [BitBoard; 64] {
     let mut array = [EMPTY_BOARD; 64];
     let mut counter = 0;
     while counter < 64 {
-        let square = BitBoard::gen_square_mask(counter);
+        let square = BitBoard::gen_sq_mask(counter);
         array[counter as usize] = square.gen_black_pawn_mask();
         counter += 1;
     }
@@ -106,7 +106,7 @@ const fn gen_straight_moves() -> [[BitBoard; 4]; 64] {
     let mut array = [[EMPTY_BOARD; 4]; 64];
     let mut counter = 0;
     while counter < 64 {
-        let square = BitBoard::gen_square_mask(counter);
+        let square = BitBoard::gen_sq_mask(counter);
         array[counter as usize] = [
             square.gen_east_mask(),
             square.gen_north_mask(),
@@ -122,7 +122,7 @@ const fn gen_diag_moves() -> [[BitBoard; 4]; 64] {
     let mut array = [[EMPTY_BOARD; 4]; 64];
     let mut counter = 0;
     while counter < 64 {
-        let square = BitBoard::gen_square_mask(counter);
+        let square = BitBoard::gen_sq_mask(counter);
         array[counter as usize] = [
             square.gen_east_north_mask(),
             square.gen_north_west_mask(),
@@ -138,7 +138,7 @@ const fn gen_knight_moves() -> [BitBoard; 64] {
     let mut array = [EMPTY_BOARD; 64];
     let mut counter = 0;
     while counter < 64 {
-        let square = BitBoard::gen_square_mask(counter);
+        let square = BitBoard::gen_sq_mask(counter);
         array[counter as usize] = square.gen_knight_mask();
         counter += 1;
     }
@@ -149,7 +149,7 @@ const fn gen_king_moves() -> [BitBoard; 64] {
     let mut array = [EMPTY_BOARD; 64];
     let mut counter = 0;
     while counter < 64 {
-        let square = BitBoard::gen_square_mask(counter);
+        let square = BitBoard::gen_sq_mask(counter);
         array[counter as usize] = square.gen_king_mask();
         counter += 1;
     }

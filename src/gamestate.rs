@@ -72,28 +72,28 @@ pub struct GameState {
 }
 
 impl GameState {
-    pub fn get_king(&self, color: Color) -> Square {
+    pub fn get_king_sq(&self, color: Color) -> Square {
         match color {
             Color::White => self.white_king,
             Color::Black => self.black_king,
         }
     }
-    pub fn get_legal_moves_at_square(&self, square: Square) -> BitBoard {
+    pub fn get_legal_moves_at_sq(&self, square: Square) -> BitBoard {
         let board = &self.board;
-        let Some(piece) = board.get_square(square) else {
+        let Some(piece) = board.get_sq(square) else {
             return EMPTY_BOARD;
         };
         if piece.color != self.turn {
             return EMPTY_BOARD;
         }
         let move_mask = board.get_move_mask(square, piece);
-        let pin_mask = board.get_pin_mask(square, self.get_king(piece.color), piece.color);
+        let pin_mask = board.get_pin_mask(square, self.get_king_sq(piece.color), piece.color);
         move_mask & pin_mask
     }
 
     pub fn make_move(&mut self, move_: Move) -> Result<Option<Piece>, &'static str> {
         let Move { from, to } = move_;
-        let legal_moves = self.get_legal_moves_at_square(from);
+        let legal_moves = self.get_legal_moves_at_sq(from);
         if (legal_moves & to.into()).is_empty() {
             return Err("Illegal Move");
         }

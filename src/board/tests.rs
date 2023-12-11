@@ -14,37 +14,31 @@ fn validate_board(board: Board) {
             == board.white_occupied
     );
     for square in board.white_occupied.iter_forward() {
-        assert_eq!(
-            board.mailbox.get_square(square).unwrap().color,
-            Color::White
-        );
+        assert_eq!(board.mailbox.get_sq(square).unwrap().color, Color::White);
     }
     for square in board.black_occupied.iter_forward() {
-        assert_eq!(
-            board.mailbox.get_square(square).unwrap().color,
-            Color::Black
-        );
+        assert_eq!(board.mailbox.get_sq(square).unwrap().color, Color::Black);
     }
     for square in board.white_pieces.pawns.iter_forward() {
-        assert_eq!(board.mailbox.get_square(square).unwrap(), WHITE_PAWN);
+        assert_eq!(board.mailbox.get_sq(square).unwrap(), WHITE_PAWN);
     }
     for square in board.white_pieces.rooks.iter_forward() {
-        assert_eq!(board.mailbox.get_square(square).unwrap(), WHITE_ROOK);
+        assert_eq!(board.mailbox.get_sq(square).unwrap(), WHITE_ROOK);
     }
     for square in board.white_pieces.knights.iter_forward() {
-        assert_eq!(board.mailbox.get_square(square).unwrap(), WHITE_KNIGHT);
+        assert_eq!(board.mailbox.get_sq(square).unwrap(), WHITE_KNIGHT);
     }
     for square in board.white_pieces.bishops.iter_forward() {
-        assert_eq!(board.mailbox.get_square(square).unwrap(), WHITE_BISHOP);
+        assert_eq!(board.mailbox.get_sq(square).unwrap(), WHITE_BISHOP);
     }
     for square in board.white_pieces.queens.iter_forward() {
-        assert_eq!(board.mailbox.get_square(square).unwrap(), WHITE_QUEEN);
+        assert_eq!(board.mailbox.get_sq(square).unwrap(), WHITE_QUEEN);
     }
     for square in board.white_pieces.kings.iter_forward() {
-        assert_eq!(board.mailbox.get_square(square).unwrap(), WHITE_KING);
+        assert_eq!(board.mailbox.get_sq(square).unwrap(), WHITE_KING);
     }
     for square in (!board.occupied).iter_forward() {
-        assert!(board.mailbox.get_square(square).is_none());
+        assert!(board.mailbox.get_sq(square).is_none());
     }
 }
 
@@ -112,10 +106,10 @@ fn test_default_fen() {
 }
 
 #[test]
-fn test_clear_and_set_square() {
+fn test_clear_and_set_sq() {
     let fen = DEFAULT_FEN;
     let mut board = Board::try_from_fen(fen).unwrap();
-    board.clear_square(Square::new(56));
+    board.clear_sq(Square::new(56));
 
     let rook_mask = BitBoard::from(Square::new(0))
         | BitBoard::from(Square::new(7))
@@ -125,7 +119,7 @@ fn test_clear_and_set_square() {
         rook_mask
     );
 
-    let piece = board.set_square(
+    let piece = board.set_sq(
         Square::new(7),
         Piece {
             color: Color::Black,

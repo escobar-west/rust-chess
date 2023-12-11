@@ -87,7 +87,7 @@ impl BitBoard {
         Some(Square::new(BACKSCAN[lookup_idx as usize]))
     }
 
-    const fn gen_square_mask(square: u64) -> Self {
+    const fn gen_sq_mask(square: u64) -> Self {
         Self(1 << square)
     }
 

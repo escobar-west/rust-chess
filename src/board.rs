@@ -58,20 +58,20 @@ impl Board {
         }
     }
 
-    pub fn get_square(&self, square: Square) -> Option<Piece> {
-        self.mailbox.get_square(square)
+    pub fn get_sq(&self, square: Square) -> Option<Piece> {
+        self.mailbox.get_sq(square)
     }
 
-    pub fn clear_square(&mut self, square: Square) -> Option<Piece> {
-        let piece = self.mailbox.clear_square(square);
+    pub fn clear_sq(&mut self, square: Square) -> Option<Piece> {
+        let piece = self.mailbox.clear_sq(square);
         if let Some(p) = piece {
             self.clear_mask_by_piece(square.into(), p)
         }
         piece
     }
 
-    pub fn set_square(&mut self, square: Square, piece: Piece) -> Option<Piece> {
-        let old_piece = self.mailbox.set_square(square, piece);
+    pub fn set_sq(&mut self, square: Square, piece: Piece) -> Option<Piece> {
+        let old_piece = self.mailbox.set_sq(square, piece);
         let square_mask: BitBoard = square.into();
         if let Some(old_piece) = old_piece {
             self.clear_mask_by_piece(square_mask, old_piece)
@@ -81,7 +81,7 @@ impl Board {
     }
 
     pub fn move_piece(&mut self, from: Square, to: Square) -> Option<Piece> {
-        self.clear_square(from).and_then(|p| self.set_square(to, p))
+        self.clear_sq(from).and_then(|p| self.set_sq(to, p))
     }
 
     pub fn get_move_mask(&self, square: Square, piece: Piece) -> BitBoard {
@@ -121,13 +121,8 @@ impl Board {
         false
     }
 
-    pub fn get_pin_mask(
-        &self,
-        pin_square: Square,
-        target_square: Square,
-        target_color: Color,
-    ) -> BitBoard {
-        let pin_square_mask = BitBoard::from(pin_square);
+    pub fn get_pin_mask(&self, pin_sq: Square, target_sq: Square, target_color: Color) -> BitBoard {
+        let pin_sq_mask = BitBoard::from(pin_sq);
         let attackers = self.get_all_pieces(!target_color);
         let straight_pinner_mask = attackers.rooks | attackers.queens;
         let diag_pinner_mask = attackers.bishops | attackers.queens;
@@ -135,8 +130,8 @@ impl Board {
             (STRAIGHT_MOVES, straight_pinner_mask),
             (DIAG_MOVES, diag_pinner_mask),
         ] {
-            let ray_masks = rays_arr[usize::from(target_square)];
-            let pin_participants = pin_square_mask | pinner_mask;
+            let ray_masks = rays_arr[usize::from(target_sq)];
+            let pin_participants = pin_sq_mask | pinner_mask;
             for dir in [
                 Direction::East,
                 Direction::North,
@@ -156,10 +151,10 @@ impl Board {
                         (king_ray_mask & self.occupied).bitscan_backward()
                     }
                 };
-                if first_blocker != Some(pin_square) {
+                if first_blocker != Some(pin_sq) {
                     continue;
                 }
-                let pin_ray_mask = rays_arr[usize::from(pin_square)][dir as usize];
+                let pin_ray_mask = rays_arr[usize::from(pin_sq)][dir as usize];
                 let second_blocker = match dir {
                     Direction::East | Direction::North => {
                         (pin_ray_mask & self.occupied).bitscan_forward()
@@ -195,7 +190,7 @@ impl Board {
                 } else {
                     let piece = Piece::try_from(c)?;
                     let square = Square::from_coords(Row::new(row_idx), Column::new(col_idx));
-                    board.set_square(square, piece);
+                    board.set_sq(square, piece);
                     col_idx += 1;
                 }
             }
@@ -210,7 +205,7 @@ impl Board {
             let mut fen_row: String = "".into();
             for col_idx in 0..8u8 {
                 let square = Square::from_coords(Row::new(row_idx), Column::new(col_idx));
-                match self.mailbox.get_square(square) {
+                match self.mailbox.get_sq(square) {
                     Some(p) => {
                         if none_count != 0 {
                             fen_row.push_str(&format!("{}", none_count));
