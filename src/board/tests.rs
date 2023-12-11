@@ -68,40 +68,24 @@ fn test_default_fen() {
 fn test_clear_and_set_sq() {
     let fen = DEFAULT_FEN;
     let mut board = Board::try_from_fen(fen).unwrap();
-    board.clear_sq(Square::new(56));
+    board.clear_sq(Square::from_alg("a8"));
 
-    let rook_mask = BitBoard::from(Square::new(0))
-        | BitBoard::from(Square::new(7))
-        | BitBoard::from(Square::new(63));
+    let rook_mask = BitBoard::from_alg("a1") | BitBoard::from_alg("h1") | BitBoard::from_alg("h8");
     assert_eq!(
         board.white_pieces.rooks | board.black_pieces.rooks,
         rook_mask
     );
 
-    let piece = board.set_sq(
-        Square::new(7),
-        Piece {
-            color: Color::Black,
-            figure: Figure::Queen,
-        },
-    );
-    assert_eq!(
-        piece,
-        Some(Piece {
-            color: Color::White,
-            figure: Figure::Rook
-        })
-    );
+    let piece = board.set_sq(Square::from_alg("h1"), BLACK_QUEEN);
+    assert_eq!(piece, Some(WHITE_ROOK));
 
-    let rook_mask = BitBoard::from(Square::new(0)) | BitBoard::from(Square::new(63));
+    let rook_mask = BitBoard::from_alg("a1") | BitBoard::from_alg("h8");
     assert_eq!(
         board.white_pieces.rooks | board.black_pieces.rooks,
         rook_mask
     );
 
-    let queen_mask = BitBoard::from(Square::new(3))
-        | BitBoard::from(Square::new(7))
-        | BitBoard::from(Square::new(59));
+    let queen_mask = BitBoard::from_alg("d1") | BitBoard::from_alg("h1") | BitBoard::from_alg("d8");
     assert_eq!(
         board.white_pieces.queens | board.black_pieces.queens,
         queen_mask
@@ -140,13 +124,7 @@ fn test_pawn_moves() {
     let board = Board::try_from_fen(fen).unwrap();
     // b2
     let pawn_sq = Square::from_alg("b2");
-    let pawn_moves = board.get_piece_move_mask(
-        pawn_sq,
-        Piece {
-            color: Color::White,
-            figure: Figure::Pawn,
-        },
-    );
+    let pawn_moves = board.get_piece_move_mask(pawn_sq, WHITE_PAWN);
     assert_eq!(
         pawn_moves,
         BitBoard::from(Square::new(17))
@@ -155,49 +133,25 @@ fn test_pawn_moves() {
     );
     // e2
     let pawn_sq = Square::from_alg("e2");
-    let pawn_moves = board.get_piece_move_mask(
-        pawn_sq,
-        Piece {
-            color: Color::White,
-            figure: Figure::Pawn,
-        },
-    );
+    let pawn_moves = board.get_piece_move_mask(pawn_sq, WHITE_PAWN);
     assert_eq!(
         pawn_moves,
         BitBoard::from(Square::new(20)) | BitBoard::from(Square::new(28))
     );
     // f3
     let pawn_sq = Square::from_alg("f3");
-    let pawn_moves = board.get_piece_move_mask(
-        pawn_sq,
-        Piece {
-            color: Color::White,
-            figure: Figure::Pawn,
-        },
-    );
+    let pawn_moves = board.get_piece_move_mask(pawn_sq, WHITE_PAWN);
     assert_eq!(pawn_moves, BitBoard::from(Square::new(29)));
     // e7
     let pawn_sq = Square::from_alg("e7");
-    let pawn_moves = board.get_piece_move_mask(
-        pawn_sq,
-        Piece {
-            color: Color::Black,
-            figure: Figure::Pawn,
-        },
-    );
+    let pawn_moves = board.get_piece_move_mask(pawn_sq, BLACK_PAWN);
     assert_eq!(
         pawn_moves,
         BitBoard::from(Square::new(36)) | BitBoard::from(Square::new(44))
     );
     // f6
     let pawn_sq = Square::from_alg("f6");
-    let pawn_moves = board.get_piece_move_mask(
-        pawn_sq,
-        Piece {
-            color: Color::Black,
-            figure: Figure::Pawn,
-        },
-    );
+    let pawn_moves = board.get_piece_move_mask(pawn_sq, BLACK_PAWN);
     assert_eq!(pawn_moves, BitBoard::from(Square::new(37)));
 }
 
@@ -207,13 +161,7 @@ fn test_rook_moves() {
     let board = Board::try_from_fen(fen).unwrap();
     let rook_sq = Square::from_alg("d5");
 
-    let rook_moves = board.get_piece_move_mask(
-        rook_sq,
-        Piece {
-            color: Color::White,
-            figure: Figure::Rook,
-        },
-    );
+    let rook_moves = board.get_piece_move_mask(rook_sq, WHITE_ROOK);
     assert_eq!(
         rook_moves,
         ((STRAIGHT_MOVES[33][Direction::East as usize]

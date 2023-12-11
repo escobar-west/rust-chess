@@ -200,6 +200,8 @@ impl Default for GameState {
 
 #[cfg(test)]
 mod tests {
+    use crate::pieces::constants::{BLACK_ROOK, WHITE_ROOK};
+
     use super::*;
 
     #[test]
@@ -237,13 +239,7 @@ mod tests {
         //Rook take rook
         let move_ = Move::from_alg("d1d5");
         let piece = gs.make_move(move_).unwrap();
-        assert_eq!(
-            piece,
-            Some(Piece {
-                color: Color::Black,
-                figure: Figure::Rook
-            })
-        );
+        assert_eq!(piece, Some(BLACK_ROOK));
 
         //Bishop pin
         let move_ = Move::from_alg("b5c6");
@@ -265,24 +261,12 @@ mod tests {
         //Legal rook move (not pinned)
         let move_ = Move::from_alg("d5d7");
         let piece = gs.make_move(move_).unwrap();
-        assert_eq!(
-            piece,
-            Some(Piece {
-                color: Color::Black,
-                figure: Figure::Rook
-            })
-        );
+        assert_eq!(piece, Some(BLACK_ROOK));
 
         //Bishop takes rook
         let move_ = Move::from_alg("c6d7");
         let piece = gs.make_move(move_).unwrap();
-        assert_eq!(
-            piece,
-            Some(Piece {
-                color: Color::White,
-                figure: Figure::Rook
-            })
-        );
+        assert_eq!(piece, Some(WHITE_ROOK));
         let expected_fen = "7k/3b4/8/8/8/5B2/8/7K w - - 0 4";
         assert_eq!(gs.to_fen(), expected_fen);
     }

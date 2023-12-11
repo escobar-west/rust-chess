@@ -1,4 +1,6 @@
 use std::ops::Not;
+
+use self::constants::*;
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Color {
@@ -44,54 +46,18 @@ impl TryFrom<char> for Piece {
     type Error = &'static str;
     fn try_from(value: char) -> Result<Self, Self::Error> {
         match value {
-            'P' => Ok(Piece {
-                color: Color::White,
-                figure: Figure::Pawn,
-            }),
-            'R' => Ok(Piece {
-                color: Color::White,
-                figure: Figure::Rook,
-            }),
-            'N' => Ok(Piece {
-                color: Color::White,
-                figure: Figure::Knight,
-            }),
-            'B' => Ok(Piece {
-                color: Color::White,
-                figure: Figure::Bishop,
-            }),
-            'Q' => Ok(Piece {
-                color: Color::White,
-                figure: Figure::Queen,
-            }),
-            'K' => Ok(Piece {
-                color: Color::White,
-                figure: Figure::King,
-            }),
-            'p' => Ok(Piece {
-                color: Color::Black,
-                figure: Figure::Pawn,
-            }),
-            'r' => Ok(Piece {
-                color: Color::Black,
-                figure: Figure::Rook,
-            }),
-            'n' => Ok(Piece {
-                color: Color::Black,
-                figure: Figure::Knight,
-            }),
-            'b' => Ok(Piece {
-                color: Color::Black,
-                figure: Figure::Bishop,
-            }),
-            'q' => Ok(Piece {
-                color: Color::Black,
-                figure: Figure::Queen,
-            }),
-            'k' => Ok(Piece {
-                color: Color::Black,
-                figure: Figure::King,
-            }),
+            'P' => Ok(WHITE_PAWN),
+            'R' => Ok(WHITE_ROOK),
+            'N' => Ok(WHITE_KNIGHT),
+            'B' => Ok(WHITE_BISHOP),
+            'Q' => Ok(WHITE_QUEEN),
+            'K' => Ok(WHITE_KING),
+            'p' => Ok(BLACK_PAWN),
+            'r' => Ok(BLACK_ROOK),
+            'n' => Ok(BLACK_KNIGHT),
+            'b' => Ok(BLACK_BISHOP),
+            'q' => Ok(BLACK_QUEEN),
+            'k' => Ok(BLACK_KING),
             _ => Err("Invalid char"),
         }
     }

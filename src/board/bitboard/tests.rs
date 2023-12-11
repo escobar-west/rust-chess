@@ -122,3 +122,9 @@ fn test_backward_bitscan() {
     let lsb = bitboard.bitscan_backward().unwrap();
     assert_eq!(lsb, Square::new(63));
 }
+
+impl BitBoard {
+    pub fn from_alg(coords: &str) -> Self {
+        BitBoard::from(Square::from_alg(coords))
+    }
+}
