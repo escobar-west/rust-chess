@@ -104,14 +104,17 @@ impl Board {
         let attackers = self.get_all_pieces(!king_color);
         let straight_pieces = attackers.rooks | attackers.queens;
         for attack_sq in straight_pieces.iter_forward() {
-            illegal_mask |= get_ray_moves_with_occupied(attack_sq, &STRAIGHT_MOVES, occ_mask);
+            illegal_mask |= get_rays_from_occupied(attack_sq, occ_mask, &STRAIGHT_MOVES);
         }
         let diag_pieces = attackers.bishops | attackers.queens;
         for attack_sq in diag_pieces.iter_forward() {
-            illegal_mask |= get_ray_moves_with_occupied(attack_sq, &DIAG_MOVES, occ_mask);
+            illegal_mask |= get_rays_from_occupied(attack_sq, occ_mask, &DIAG_MOVES);
         }
         for attack_sq in attackers.knights.iter_forward() {
             illegal_mask |= self.get_knight_moves(attack_sq)
+        }
+        for attack_sq in attackers.kings.iter_forward() {
+            illegal_mask |= self.get_king_moves(attack_sq)
         }
         match king_color {
             Color::White => illegal_mask |= attackers.pawns.gen_black_pawn_mask(),
@@ -323,11 +326,11 @@ impl Board {
     }
 
     fn get_straight_moves(&self, square: Square) -> BitBoard {
-        get_ray_moves_with_occupied(square, &STRAIGHT_MOVES, self.occupied)
+        get_rays_from_occupied(square, self.occupied, &STRAIGHT_MOVES)
     }
 
     fn get_diag_moves(&self, square: Square) -> BitBoard {
-        get_ray_moves_with_occupied(square, &DIAG_MOVES, self.occupied)
+        get_rays_from_occupied(square, self.occupied, &DIAG_MOVES)
     }
 
     fn get_knight_moves(&self, square: Square) -> BitBoard {
@@ -339,9 +342,13 @@ impl Board {
     }
 }
 
-fn get_ray_moves_with_occupied(square: Square, rays: &BitBoardRayTable, occ: BitBoard) -> BitBoard {
+fn get_rays_from_occupied(
+    square: Square,
+    occ_mask: BitBoard,
+    ray_table: &BitBoardRayTable,
+) -> BitBoard {
     let mut output_mask = EMPTY_BOARD;
-    let ray_masks = rays[usize::from(square)];
+    let ray_masks = ray_table[usize::from(square)];
     for dir in [
         Direction::East,
         Direction::North,
@@ -350,11 +357,11 @@ fn get_ray_moves_with_occupied(square: Square, rays: &BitBoardRayTable, occ: Bit
     ] {
         let mut ray_mask = ray_masks[dir as usize];
         let blocker = match dir {
-            Direction::East | Direction::North => (ray_mask & occ).bitscan_forward(),
-            Direction::West | Direction::South => (ray_mask & occ).bitscan_backward(),
+            Direction::East | Direction::North => (ray_mask & occ_mask).bitscan_forward(),
+            Direction::West | Direction::South => (ray_mask & occ_mask).bitscan_backward(),
         };
         if let Some(blocker) = blocker {
-            ray_mask ^= rays[usize::from(blocker)][dir as usize];
+            ray_mask ^= ray_table[usize::from(blocker)][dir as usize];
         }
         output_mask |= ray_mask;
     }
