@@ -86,48 +86,25 @@ impl Board {
         self.clear_sq(from).and_then(|p| self.set_sq(to, p))
     }
 
-    pub fn get_piece_move_mask(&self, square: Square, piece: Piece) -> BitBoard {
-        let move_mask = match piece.figure {
+    pub fn get_moves_from_sq(&self, square: Square) -> BitBoard {
+        let Some(piece) = self.get_sq(square) else {
+            return EMPTY_BOARD;
+        };
+        match piece.figure {
             Figure::Pawn => self.get_pawn_moves(square, piece.color),
             Figure::Rook => self.get_straight_moves(square),
             Figure::Knight => square.get_knight_moves(),
             Figure::Bishop => self.get_diag_moves(square),
             Figure::Queen => self.get_straight_moves(square) | self.get_diag_moves(square),
             Figure::King => square.get_king_moves(),
-        };
-        move_mask & !self.get_color_mask(piece.color)
-    }
-
-    pub fn get_attack_mask(&self, square: Square, color: Color) -> BitBoard {
-        let mut illegal_mask = !square.get_king_moves();
-        let blockers = self.occupied & !BitBoard::from(square);
-        let attackers = self.get_all_pieces(color);
-        let straight_pieces = attackers.rooks | attackers.queens;
-        for attack_sq in straight_pieces.iter_forward() {
-            illegal_mask |= get_ray_mask(attack_sq, blockers, &STRAIGHT_MOVES);
         }
-        let diag_pieces = attackers.bishops | attackers.queens;
-        for attack_sq in diag_pieces.iter_forward() {
-            illegal_mask |= get_ray_mask(attack_sq, blockers, &DIAG_MOVES);
-        }
-        for attack_sq in attackers.knights.iter_forward() {
-            illegal_mask |= attack_sq.get_knight_moves()
-        }
-        for attack_sq in attackers.kings.iter_forward() {
-            illegal_mask |= attack_sq.get_king_moves()
-        }
-        match color {
-            Color::White => illegal_mask |= attackers.pawns.gen_white_pawn_mask(),
-            Color::Black => illegal_mask |= attackers.pawns.gen_black_pawn_mask(),
-        };
-        !(illegal_mask | self.get_color_mask(color))
     }
 
     pub fn get_safe_squares(&self, player_square: Square, player_color: Color) -> BitBoard {
         let attack_color = !player_color;
-        let attackers = self.get_all_pieces(attack_color);
+        let attackers = self.get_piece_set(attack_color);
         let blockers = self.occupied & !BitBoard::from(player_square);
-        let attack_mask = get_attack_mask(attackers, attack_color, blockers);
+        let attack_mask = get_all_attacks_mask(attackers, attack_color, blockers);
         !attack_mask
     }
 
@@ -141,7 +118,7 @@ impl Board {
 
     pub fn get_pin_mask(&self, pin_sq: Square, target_sq: Square, target_color: Color) -> BitBoard {
         let pin_sq_mask = BitBoard::from(pin_sq);
-        let attackers = self.get_all_pieces(!target_color);
+        let attackers = self.get_piece_set(!target_color);
         let straight_pinner_mask = attackers.rooks | attackers.queens;
         let diag_pinner_mask = attackers.bishops | attackers.queens;
         for (rays_arr, pinner_mask) in [
@@ -194,7 +171,7 @@ impl Board {
     }
 
     pub fn is_attacked_by(&self, square: Square, attack_color: Color) -> bool {
-        let attackers = self.get_all_pieces(attack_color);
+        let attackers = self.get_piece_set(attack_color);
         let straight_pieces = attackers.rooks | attackers.queens;
         if (self.get_straight_moves(square) & straight_pieces).is_not_empty() {
             return true;
@@ -290,7 +267,7 @@ impl Board {
         }
     }
 
-    fn get_all_pieces(&self, color: Color) -> &PieceSet {
+    fn get_piece_set(&self, color: Color) -> &PieceSet {
         match color {
             Color::White => &self.white_pieces,
             Color::Black => &self.black_pieces,
@@ -364,7 +341,7 @@ fn get_ray_mask(square: Square, blockers: BitBoard, ray_table: &BitBoardRayTable
     attack_mask
 }
 
-fn get_attack_mask(attackers: &PieceSet, attack_color: Color, blockers: BitBoard) -> BitBoard {
+fn get_all_attacks_mask(attackers: &PieceSet, attack_color: Color, blockers: BitBoard) -> BitBoard {
     let mut attack_mask = EMPTY_BOARD;
     let straight_pieces = attackers.rooks | attackers.queens;
     for attack_sq in straight_pieces.iter_forward() {

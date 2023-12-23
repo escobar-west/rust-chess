@@ -119,60 +119,6 @@ fn test_move_piece() {
 }
 
 #[test]
-fn test_pawn_moves() {
-    let fen = "4k3/4p3/5pp1/7Q/8/B1r2P2/1P2P3/4K3 w - - 0 1";
-    let board = Board::try_from_fen(fen).unwrap();
-    // b2
-    let pawn_sq = Square::from_alg("b2");
-    let pawn_moves = board.get_piece_move_mask(pawn_sq, WHITE_PAWN);
-    assert_eq!(
-        pawn_moves,
-        BitBoard::from(Square::new(17))
-            | BitBoard::from(Square::new(18))
-            | BitBoard::from(Square::new(25))
-    );
-    // e2
-    let pawn_sq = Square::from_alg("e2");
-    let pawn_moves = board.get_piece_move_mask(pawn_sq, WHITE_PAWN);
-    assert_eq!(
-        pawn_moves,
-        BitBoard::from(Square::new(20)) | BitBoard::from(Square::new(28))
-    );
-    // f3
-    let pawn_sq = Square::from_alg("f3");
-    let pawn_moves = board.get_piece_move_mask(pawn_sq, WHITE_PAWN);
-    assert_eq!(pawn_moves, BitBoard::from(Square::new(29)));
-    // e7
-    let pawn_sq = Square::from_alg("e7");
-    let pawn_moves = board.get_piece_move_mask(pawn_sq, BLACK_PAWN);
-    assert_eq!(
-        pawn_moves,
-        BitBoard::from(Square::new(36)) | BitBoard::from(Square::new(44))
-    );
-    // f6
-    let pawn_sq = Square::from_alg("f6");
-    let pawn_moves = board.get_piece_move_mask(pawn_sq, BLACK_PAWN);
-    assert_eq!(pawn_moves, BitBoard::from(Square::new(37)));
-}
-
-#[test]
-fn test_rook_moves() {
-    let fen = "8/8/3r4/1R1R1R2/8/3R4/8/8 w - - 0 1";
-    let board = Board::try_from_fen(fen).unwrap();
-    let rook_sq = Square::from_alg("d5");
-
-    let rook_moves = board.get_piece_move_mask(rook_sq, WHITE_ROOK);
-    assert_eq!(
-        rook_moves,
-        ((STRAIGHT_MOVES[33][Direction::East as usize]
-            & STRAIGHT_MOVES[37][Direction::West as usize])
-            | (STRAIGHT_MOVES[19][Direction::North as usize]
-                & STRAIGHT_MOVES[51][Direction::South as usize]))
-            ^ rook_sq.into()
-    );
-}
-
-#[test]
 fn test_straight_pin_east() {
     let fen = "8/8/6k1/K3B2r/2q5/8/8/8 w - - 0 1";
     let board = Board::try_from_fen(fen).unwrap();

@@ -45,6 +45,10 @@ pub static KNIGHT_MOVES: [BitBoard; 64] = gen_knight_moves();
 
 pub static KING_MOVES: [BitBoard; 64] = gen_king_moves();
 
+pub static STRAIGHT_CLEAR: [[BitBoard; 64]; 64] = gen_straight_clear_masks();
+
+pub static DIAG_CLEAR: [[BitBoard; 64]; 64] = gen_diag_clear_masks();
+
 const fn gen_sqs() -> [BitBoard; 64] {
     let mut array = [EMPTY_BOARD; 64];
     let mut counter = 0;
@@ -128,5 +132,15 @@ const fn gen_king_moves() -> [BitBoard; 64] {
         array[counter as usize] = square.gen_king_mask();
         counter += 1;
     }
+    array
+}
+
+const fn gen_straight_clear_masks() -> [[BitBoard; 64]; 64] {
+    let array = [[EMPTY_BOARD; 64]; 64];
+    array
+}
+
+const fn gen_diag_clear_masks() -> [[BitBoard; 64]; 64] {
+    let array = [[EMPTY_BOARD; 64]; 64];
     array
 }

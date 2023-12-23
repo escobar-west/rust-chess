@@ -88,38 +88,6 @@ impl GameState {
             Color::Black => self.black_king,
         }
     }
-    pub fn get_legal_moves_at_sq(&self, square: Square) -> BitBoard {
-        let board = &self.board;
-        let Some(piece) = board.get_sq(square) else {
-            return EMPTY_BOARD;
-        };
-        if piece.color != self.turn {
-            return EMPTY_BOARD;
-        }
-        let king_sq = self.get_king_sq(piece.color);
-        let pin_mask = board.get_pin_mask(square, king_sq, piece.color);
-        board.get_piece_move_mask(square, piece) & pin_mask
-    }
-
-    pub fn make_move(&mut self, move_: Move) -> Result<Option<Piece>, &'static str> {
-        let Move { from, to } = move_;
-        let legal_moves = self.get_legal_moves_at_sq(from);
-        if (legal_moves & to.into()).is_empty() {
-            return Err("Illegal Move");
-        }
-        let moving_piece = self.board.get_sq(from).ok_or("Moving empty square")?;
-        let captured_piece = self.board.move_piece(from, to);
-        if captured_piece.is_some() | (moving_piece.figure == Figure::Pawn) {
-            self.half_moves = 0;
-        } else {
-            self.half_moves += 1;
-        }
-        if self.turn == Color::Black {
-            self.full_moves += 1;
-        }
-        self.turn = !self.turn;
-        Ok(captured_piece)
-    }
 
     pub fn try_from_fen(fen: &str) -> Result<Self, &'static str> {
         let mut fen_iter = fen.split(' ');
@@ -225,72 +193,5 @@ mod tests {
         assert_eq!(gs.ep, None);
         assert_eq!(gs.half_moves, 0);
         assert_eq!(gs.full_moves, 1);
-    }
-
-    #[test]
-    fn test_scen_1() {
-        let mut gs = GameState::default();
-        for m in ["e2e4", "d7d5", "e4d5", "g8f6", "f1a6", "d8d6"] {
-            let move_ = Move::from_alg(m);
-            gs.make_move(move_).unwrap();
-        }
-        let expected_fen = "rnb1kb1r/ppp1pppp/B2q1n2/3P4/8/8/PPPP1PPP/RNBQK1NR w KQkq - 3 4";
-        assert_eq!(gs.to_fen(), expected_fen);
-    }
-
-    #[test]
-    fn test_legal_moves_not_in_check() {
-        let mut gs = GameState::default();
-        for m in ["e2e4", "d7d5", "e4d5", "g8f6", "f1a6", "d8d6"] {
-            let move_ = Move::from_alg(m);
-            gs.make_move(move_).unwrap();
-        }
-        let expected_fen = "rnb1kb1r/ppp1pppp/B2q1n2/3P4/8/8/PPPP1PPP/RNBQK1NR w KQkq - 3 4";
-        assert_eq!(gs.to_fen(), expected_fen);
-    }
-
-    #[test]
-    fn test_legal_moves() {
-        let fen = "7k/r7/8/1b1r4/6B1/8/8/3R3K w - - 0 1";
-        let mut gs = GameState::try_from_fen(fen).unwrap();
-
-        //Illegal bishop move (wrong color)
-        let move_ = Move::from_alg("b5a6");
-        let error = gs.make_move(move_);
-        assert_eq!(error, Err("Illegal Move"));
-
-        //Rook take rook
-        let move_ = Move::from_alg("d1d5");
-        let piece = gs.make_move(move_).unwrap();
-        assert_eq!(piece, Some(BLACK_ROOK));
-
-        //Bishop pin
-        let move_ = Move::from_alg("b5c6");
-        let _ = gs.make_move(move_).unwrap();
-
-        //Illegal rook move (pinned)
-        let move_ = Move::from_alg("d5d7");
-        let error = gs.make_move(move_);
-        assert_eq!(error, Err("Illegal Move"));
-
-        //Break pin
-        let move_ = Move::from_alg("g4f3");
-        let _ = gs.make_move(move_).unwrap();
-
-        //Random rook move
-        let move_ = Move::from_alg("a7d7");
-        let _ = gs.make_move(move_).unwrap();
-
-        //Legal rook move (not pinned)
-        let move_ = Move::from_alg("d5d7");
-        let piece = gs.make_move(move_).unwrap();
-        assert_eq!(piece, Some(BLACK_ROOK));
-
-        //Bishop takes rook
-        let move_ = Move::from_alg("c6d7");
-        let piece = gs.make_move(move_).unwrap();
-        assert_eq!(piece, Some(WHITE_ROOK));
-        let expected_fen = "7k/3b4/8/8/8/5B2/8/7K w - - 0 4";
-        assert_eq!(gs.to_fen(), expected_fen);
     }
 }
