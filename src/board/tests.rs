@@ -273,16 +273,6 @@ fn test_straight_pin_south_east() {
     assert_eq!(pin_mask, expected);
 }
 
-#[test]
-fn test_safe_king_squares() {
-    let fen = "3qr1b1/8/8/8/1p1KB3/8/8/7k w - - 0 1";
-    let board = Board::try_from_fen(fen).unwrap();
-    let king_sq = Square::from_alg("d4");
-    let output = board.get_safe_king_mask(king_sq, Color::White);
-    let expected = BitBoard::from_alg("c5") | BitBoard::from_alg("e3");
-    assert_eq!(output, expected);
-}
-
 impl Board {
     fn validate(&self) {
         assert!(self.white_occupied ^ self.black_occupied == self.occupied);

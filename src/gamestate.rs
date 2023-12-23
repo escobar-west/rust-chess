@@ -1,4 +1,6 @@
 mod moves;
+use std::io::Empty;
+
 use crate::{
     board::{BitBoard, Board, Square, EMPTY_BOARD},
     pieces::{
@@ -9,6 +11,13 @@ use crate::{
 use moves::Move;
 
 pub const DEFAULT_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+enum CheckType {
+    None,
+    Single,
+    Double,
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 struct CastleRights(u8);
@@ -69,6 +78,7 @@ pub struct GameState {
     full_moves: u32,
     white_king: Square,
     black_king: Square,
+    check_type: CheckType,
 }
 
 impl GameState {
@@ -86,9 +96,9 @@ impl GameState {
         if piece.color != self.turn {
             return EMPTY_BOARD;
         }
-        let move_mask = board.get_piece_move_mask(square, piece);
-        let pin_mask = board.get_pin_mask(square, self.get_king_sq(piece.color), piece.color);
-        move_mask & pin_mask
+        let king_sq = self.get_king_sq(piece.color);
+        let pin_mask = board.get_pin_mask(square, king_sq, piece.color);
+        board.get_piece_move_mask(square, piece) & pin_mask
     }
 
     pub fn make_move(&mut self, move_: Move) -> Result<Option<Piece>, &'static str> {
@@ -97,8 +107,9 @@ impl GameState {
         if (legal_moves & to.into()).is_empty() {
             return Err("Illegal Move");
         }
+        let moving_piece = self.board.get_sq(from).ok_or("Moving empty square")?;
         let captured_piece = self.board.move_piece(from, to);
-        if captured_piece.is_some() {
+        if captured_piece.is_some() | (moving_piece.figure == Figure::Pawn) {
             self.half_moves = 0;
         } else {
             self.half_moves += 1;
@@ -152,6 +163,7 @@ impl GameState {
             full_moves,
             white_king,
             black_king,
+            check_type: CheckType::None,
         })
     }
 
@@ -217,6 +229,17 @@ mod tests {
 
     #[test]
     fn test_scen_1() {
+        let mut gs = GameState::default();
+        for m in ["e2e4", "d7d5", "e4d5", "g8f6", "f1a6", "d8d6"] {
+            let move_ = Move::from_alg(m);
+            gs.make_move(move_).unwrap();
+        }
+        let expected_fen = "rnb1kb1r/ppp1pppp/B2q1n2/3P4/8/8/PPPP1PPP/RNBQK1NR w KQkq - 3 4";
+        assert_eq!(gs.to_fen(), expected_fen);
+    }
+
+    #[test]
+    fn test_legal_moves_not_in_check() {
         let mut gs = GameState::default();
         for m in ["e2e4", "d7d5", "e4d5", "g8f6", "f1a6", "d8d6"] {
             let move_ = Move::from_alg(m);

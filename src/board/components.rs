@@ -1,4 +1,4 @@
-use super::bitboard::{BitBoard, COLUMNS, ROWS, SQUARES};
+use super::bitboard::{BitBoard, COLUMNS, KING_MOVES, KNIGHT_MOVES, ROWS, SQUARES};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Row(u8);
@@ -47,6 +47,14 @@ impl Square {
 
     pub const fn from_coords(row: Row, col: Column) -> Self {
         Self(col.0 + 8 * row.0)
+    }
+
+    pub fn get_knight_moves(self) -> BitBoard {
+        KNIGHT_MOVES[usize::from(self)]
+    }
+
+    pub fn get_king_moves(self) -> BitBoard {
+        KING_MOVES[usize::from(self)]
     }
 
     pub fn to_alg(self) -> String {
