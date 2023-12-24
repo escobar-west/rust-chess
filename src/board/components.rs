@@ -8,6 +8,10 @@ impl Row {
         assert!(value & 7 == value);
         Self(value)
     }
+
+    pub const fn to_bitboard(self) -> BitBoard {
+        BitBoard::new(0xff << (8 * self.0))
+    }
 }
 
 impl From<Row> for BitBoard {
@@ -24,6 +28,10 @@ impl Column {
         assert!(value & 7 == value);
         Self(value)
     }
+
+    pub const fn to_bitboard(self) -> BitBoard {
+        BitBoard::new(0x0101010101010101 << self.0)
+    }
 }
 
 impl From<Column> for BitBoard {
@@ -39,6 +47,10 @@ impl Square {
     pub const fn new(value: u8) -> Self {
         assert!(value & 63 == value);
         Self(value)
+    }
+
+    pub const fn to_bitboard(self) -> BitBoard {
+        BitBoard::new(1 << self.0)
     }
 
     pub const fn get_row(self) -> Row {

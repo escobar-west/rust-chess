@@ -18,7 +18,7 @@ pub enum Direction {
 pub struct BitBoard(u64);
 
 impl BitBoard {
-    const fn new(value: u64) -> Self {
+    pub const fn new(value: u64) -> Self {
         Self(value)
     }
 
@@ -73,18 +73,6 @@ impl BitBoard {
             out_str.push('\n')
         }
         println!("{}", out_str);
-    }
-
-    const fn gen_sq_mask(square: u64) -> Self {
-        Self(1 << square)
-    }
-
-    const fn gen_row_mask(row: u8) -> Self {
-        Self(0xff << (8 * row))
-    }
-
-    const fn gen_col_mask(col: u8) -> Self {
-        Self(0x0101010101010101 << col)
     }
 
     const fn gen_east_mask(self) -> Self {
