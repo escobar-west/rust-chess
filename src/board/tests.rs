@@ -147,7 +147,7 @@ fn test_straight_pin_east_north() {
     let pin_sq = Square::new(36);
     let king_sq = Square::from_alg("b2");
     let pin_mask = board.get_pin_mask(pin_sq, king_sq, Color::White);
-    let expected = DIAG_MOVES[9][Direction::East as usize];
+    let expected = DIAG_RAYS[9][Direction::East as usize];
     assert_eq!(pin_mask, expected);
 }
 
@@ -170,7 +170,7 @@ fn test_straight_pin_north_west() {
     let king_sq = Square::from_alg("f3");
     let pin_mask = board.get_pin_mask(pin_sq, king_sq, Color::White);
     let expected =
-        DIAG_MOVES[21][Direction::North as usize] ^ DIAG_MOVES[42][Direction::North as usize];
+        DIAG_RAYS[21][Direction::North as usize] ^ DIAG_RAYS[42][Direction::North as usize];
     assert_eq!(pin_mask, expected);
 }
 
@@ -192,7 +192,7 @@ fn test_straight_pin_west_south() {
     let pin_sq = Square::new(25);
     let king_sq = Square::from_alg("f8");
     let pin_mask = board.get_pin_mask(pin_sq, king_sq, Color::Black);
-    let expected = DIAG_MOVES[61][Direction::West as usize];
+    let expected = DIAG_RAYS[61][Direction::West as usize];
     assert_eq!(pin_mask, expected);
 }
 
@@ -215,7 +215,7 @@ fn test_straight_pin_south_east() {
     let king_sq = Square::from_alg("b7");
     let pin_mask = board.get_pin_mask(pin_sq, king_sq, Color::Black);
     let expected =
-        DIAG_MOVES[49][Direction::South as usize] ^ DIAG_MOVES[21][Direction::South as usize];
+        DIAG_RAYS[49][Direction::South as usize] ^ DIAG_RAYS[21][Direction::South as usize];
     assert_eq!(pin_mask, expected);
 }
 

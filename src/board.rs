@@ -5,7 +5,7 @@ mod mailbox;
 use crate::pieces::{constants::*, Color, Figure, Piece};
 pub use bitboard::{BitBoard, EMPTY_BOARD, FULL_BOARD};
 use bitboard::{
-    Direction, BLACK_PAWN_ATTACKS, DIAG_MOVES, KING_MOVES, KNIGHT_MOVES, STRAIGHT_MOVES,
+    Direction, BLACK_PAWN_ATTACKS, DIAG_RAYS, KING_MOVES, KNIGHT_MOVES, STRAIGHT_RAYS,
     WHITE_PAWN_ATTACKS,
 };
 pub use components::{Column, Row, Square};
@@ -109,11 +109,11 @@ impl Board {
     }
 
     pub fn get_straight_moves(&self, square: Square) -> BitBoard {
-        get_ray_mask(square, self.occupied, &STRAIGHT_MOVES)
+        get_blocked_rays(square, self.occupied, &STRAIGHT_RAYS)
     }
 
     pub fn get_diag_moves(&self, square: Square) -> BitBoard {
-        get_ray_mask(square, self.occupied, &DIAG_MOVES)
+        get_blocked_rays(square, self.occupied, &DIAG_RAYS)
     }
 
     pub fn get_pin_mask(&self, pin_sq: Square, target_sq: Square, target_color: Color) -> BitBoard {
@@ -122,8 +122,8 @@ impl Board {
         let straight_pinner_mask = attackers.rooks | attackers.queens;
         let diag_pinner_mask = attackers.bishops | attackers.queens;
         for (rays_arr, pinner_mask) in [
-            (STRAIGHT_MOVES, straight_pinner_mask),
-            (DIAG_MOVES, diag_pinner_mask),
+            (STRAIGHT_RAYS, straight_pinner_mask),
+            (DIAG_RAYS, diag_pinner_mask),
         ] {
             let ray_masks = rays_arr[usize::from(target_sq)];
             let pin_participants = pin_sq_mask | pinner_mask;
@@ -319,7 +319,7 @@ impl Board {
     }
 }
 
-fn get_ray_mask(square: Square, blockers: BitBoard, ray_table: &BitBoardRayTable) -> BitBoard {
+fn get_blocked_rays(square: Square, blockers: BitBoard, ray_table: &BitBoardRayTable) -> BitBoard {
     let mut attack_mask = EMPTY_BOARD;
     let ray_masks = ray_table[usize::from(square)];
     for dir in [
@@ -345,11 +345,11 @@ fn get_all_attacks_mask(attackers: &PieceSet, attack_color: Color, blockers: Bit
     let mut attack_mask = EMPTY_BOARD;
     let straight_pieces = attackers.rooks | attackers.queens;
     for attack_sq in straight_pieces.iter_forward() {
-        attack_mask |= get_ray_mask(attack_sq, blockers, &STRAIGHT_MOVES);
+        attack_mask |= get_blocked_rays(attack_sq, blockers, &STRAIGHT_RAYS);
     }
     let diag_pieces = attackers.bishops | attackers.queens;
     for attack_sq in diag_pieces.iter_forward() {
-        attack_mask |= get_ray_mask(attack_sq, blockers, &DIAG_MOVES);
+        attack_mask |= get_blocked_rays(attack_sq, blockers, &DIAG_RAYS);
     }
     for attack_sq in attackers.knights.iter_forward() {
         attack_mask |= attack_sq.get_knight_moves()

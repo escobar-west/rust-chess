@@ -37,17 +37,17 @@ pub static WHITE_PAWN_ATTACKS: [BitBoard; 64] = gen_white_pawn_attacks();
 
 pub static BLACK_PAWN_ATTACKS: [BitBoard; 64] = gen_black_pawn_attacks();
 
-pub static STRAIGHT_MOVES: [[BitBoard; 4]; 64] = gen_straight_moves();
+pub static STRAIGHT_RAYS: [[BitBoard; 4]; 64] = gen_straight_moves();
 
-pub static DIAG_MOVES: [[BitBoard; 4]; 64] = gen_diag_moves();
+pub static DIAG_RAYS: [[BitBoard; 4]; 64] = gen_diag_moves();
 
 pub static KNIGHT_MOVES: [BitBoard; 64] = gen_knight_moves();
 
 pub static KING_MOVES: [BitBoard; 64] = gen_king_moves();
 
-pub static STRAIGHT_CLEAR: [[BitBoard; 64]; 64] = gen_straight_clear_masks();
+pub static STRAIGHT_SEGMENTS: [[BitBoard; 64]; 64] = gen_straight_segments();
 
-pub static DIAG_CLEAR: [[BitBoard; 64]; 64] = gen_diag_clear_masks();
+pub static DIAG_SEGMENTS: [[BitBoard; 64]; 64] = gen_diag_segments();
 
 const fn gen_sqs() -> [BitBoard; 64] {
     let mut array = [EMPTY_BOARD; 64];
@@ -135,12 +135,12 @@ const fn gen_king_moves() -> [BitBoard; 64] {
     array
 }
 
-const fn gen_straight_clear_masks() -> [[BitBoard; 64]; 64] {
+const fn gen_straight_segments() -> [[BitBoard; 64]; 64] {
     let array = [[EMPTY_BOARD; 64]; 64];
     array
 }
 
-const fn gen_diag_clear_masks() -> [[BitBoard; 64]; 64] {
+const fn gen_diag_segments() -> [[BitBoard; 64]; 64] {
     let array = [[EMPTY_BOARD; 64]; 64];
     array
 }
