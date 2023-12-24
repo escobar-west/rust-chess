@@ -169,7 +169,7 @@ impl BitBoard {
         let self_inner: u64 = self.0;
         let lateral_mask = ((self_inner << 1) & NOT_A_FILE) | ((self_inner >> 1) & NOT_H_FILE);
         let screen_mask = lateral_mask | self_inner;
-        BitBoard::new(lateral_mask | (screen_mask << 8) | (screen_mask >> 8))
+        Self(lateral_mask | (screen_mask << 8) | (screen_mask >> 8))
     }
 }
 
