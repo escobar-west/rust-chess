@@ -5,13 +5,11 @@ mod mailbox;
 use crate::pieces::{constants::*, Color, Figure, Piece};
 pub use bitboard::{BitBoard, EMPTY_BOARD, FULL_BOARD};
 use bitboard::{
-    Direction, BLACK_PAWN_ATTACKS, DIAG_RAYS, KING_MOVES, KNIGHT_MOVES, STRAIGHT_RAYS,
-    WHITE_PAWN_ATTACKS,
+    Direction, BLACK_PAWN_ATTACKS, DIAG_RAYS, DIAG_SEGMENTS, KING_MOVES, KNIGHT_MOVES, NOT_H_FILE,
+    STRAIGHT_RAYS, STRAIGHT_SEGMENTS, WHITE_PAWN_ATTACKS,
 };
 pub use components::{Column, Row, Square};
 use mailbox::MailBox;
-
-use self::bitboard::NOT_H_FILE;
 
 type BitBoardRayTable = [[BitBoard; 4]; 64];
 
@@ -117,54 +115,20 @@ impl Board {
     }
 
     pub fn get_pin_mask(&self, pin_sq: Square, target_sq: Square, target_color: Color) -> BitBoard {
-        let pin_sq_mask = BitBoard::from(pin_sq);
+        let pin_sq = pin_sq.as_bitboard();
         let attackers = self.get_piece_set(!target_color);
-        let straight_pinner_mask = attackers.rooks | attackers.queens;
-        let diag_pinner_mask = attackers.bishops | attackers.queens;
-        for (rays_arr, pinner_mask) in [
-            (STRAIGHT_RAYS, straight_pinner_mask),
-            (DIAG_RAYS, diag_pinner_mask),
-        ] {
-            let ray_masks = rays_arr[usize::from(target_sq)];
-            let pin_participants = pin_sq_mask | pinner_mask;
-            for dir in [
-                Direction::East,
-                Direction::North,
-                Direction::West,
-                Direction::South,
-            ] {
-                let king_ray_mask = ray_masks[dir as usize];
-                let check_mask = king_ray_mask & pin_participants;
-                if check_mask.is_empty() {
-                    continue;
-                }
-                let first_blocker = match dir {
-                    Direction::East | Direction::North => {
-                        (king_ray_mask & self.occupied).bitscan_forward()
-                    }
-                    Direction::West | Direction::South => {
-                        (king_ray_mask & self.occupied).bitscan_backward()
-                    }
-                };
-                if first_blocker != Some(pin_sq) {
-                    continue;
-                }
-                let pin_ray_mask = rays_arr[usize::from(pin_sq)][dir as usize];
-                let second_blocker = match dir {
-                    Direction::East | Direction::North => {
-                        (pin_ray_mask & self.occupied).bitscan_forward()
-                    }
-                    Direction::West | Direction::South => {
-                        (pin_ray_mask & self.occupied).bitscan_backward()
-                    }
-                };
-                let Some(second_blocker) = second_blocker else {
-                    continue;
-                };
-                if (pinner_mask & second_blocker.into()).is_empty() {
-                    continue;
-                }
-                return king_ray_mask ^ rays_arr[usize::from(second_blocker)][dir as usize];
+        let straight_pinners = attackers.rooks | attackers.queens;
+        for pinner_sq in straight_pinners.iter_forward() {
+            let segment = get_straight_segment(target_sq, pinner_sq);
+            if segment & self.occupied == pin_sq | pinner_sq.as_bitboard() {
+                return segment;
+            }
+        }
+        let diag_pinners = attackers.bishops | attackers.queens;
+        for pinner_sq in diag_pinners.iter_forward() {
+            let segment = get_diag_segment(target_sq, pinner_sq);
+            if segment & self.occupied == pin_sq | pinner_sq.as_bitboard() {
+                return segment;
             }
         }
         FULL_BOARD
@@ -317,6 +281,14 @@ impl Board {
             }
         }
     }
+}
+
+fn get_straight_segment(from: Square, to: Square) -> BitBoard {
+    STRAIGHT_SEGMENTS[from.as_usize()][to.as_usize()]
+}
+
+fn get_diag_segment(from: Square, to: Square) -> BitBoard {
+    DIAG_SEGMENTS[from.as_usize()][to.as_usize()]
 }
 
 fn get_blocked_rays(square: Square, blockers: BitBoard, ray_table: &BitBoardRayTable) -> BitBoard {

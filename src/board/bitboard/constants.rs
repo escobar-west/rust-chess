@@ -188,7 +188,7 @@ const fn gen_straight_segments_from_square(from_square: Square) -> [BitBoard; 64
     }
     col_counter = from_col.as_u8() + 1;
     while col_counter < 8 {
-        let to_square = Square::from_coords(Row::new(col_counter), from_col);
+        let to_square = Square::from_coords(from_row, Column::new(col_counter));
         let segment = from_square.as_bitboard().gen_east_mask().as_u64()
             ^ to_square.as_bitboard().gen_east_mask().as_u64();
         array[to_square.as_usize()] = BitBoard(segment);
