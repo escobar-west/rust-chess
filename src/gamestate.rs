@@ -180,8 +180,6 @@ impl Default for GameState {
 
 #[cfg(test)]
 mod tests {
-    use crate::pieces::constants::{BLACK_ROOK, WHITE_ROOK};
-
     use super::*;
 
     #[test]

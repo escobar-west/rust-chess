@@ -9,7 +9,11 @@ impl Row {
         Self(value)
     }
 
-    pub const fn to_bitboard(self) -> BitBoard {
+    pub const fn as_u8(self) -> u8 {
+        self.0
+    }
+
+    pub const fn as_bitboard(self) -> BitBoard {
         BitBoard::new(0xff << (8 * self.0))
     }
 }
@@ -29,7 +33,11 @@ impl Column {
         Self(value)
     }
 
-    pub const fn to_bitboard(self) -> BitBoard {
+    pub const fn as_u8(self) -> u8 {
+        self.0
+    }
+
+    pub const fn as_bitboard(self) -> BitBoard {
         BitBoard::new(0x0101010101010101 << self.0)
     }
 }
@@ -49,12 +57,24 @@ impl Square {
         Self(value)
     }
 
-    pub const fn to_bitboard(self) -> BitBoard {
+    pub const fn as_u8(self) -> u8 {
+        self.0
+    }
+
+    pub const fn as_usize(self) -> usize {
+        self.0 as usize
+    }
+
+    pub const fn as_bitboard(self) -> BitBoard {
         BitBoard::new(1 << self.0)
     }
 
     pub const fn get_row(self) -> Row {
         Row(self.0 >> 3)
+    }
+
+    pub const fn get_col(self) -> Column {
+        Column(self.0 & 7)
     }
 
     pub const fn from_coords(row: Row, col: Column) -> Self {

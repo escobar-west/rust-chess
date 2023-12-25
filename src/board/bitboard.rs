@@ -75,6 +75,10 @@ impl BitBoard {
         println!("{}", out_str);
     }
 
+    const fn as_u64(self) -> u64 {
+        self.0
+    }
+
     const fn gen_east_mask(self) -> Self {
         let mut mask = self.0;
         mask |= NOT_A_FILE & (mask << 1);
