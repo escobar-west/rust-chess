@@ -114,43 +114,54 @@ impl Board {
         get_blocked_rays(square, self.occupied, &DIAG_RAYS)
     }
 
-    pub fn get_pin_mask(&self, pin_sq: Square, target_sq: Square, target_color: Color) -> BitBoard {
-        let pin_sq = pin_sq.as_bitboard();
+    pub fn get_pin_mask(
+        &self,
+        pinned_sq: Square,
+        target_sq: Square,
+        target_color: Color,
+    ) -> BitBoard {
+        let pinned_sq = pinned_sq.as_bitboard();
         let attackers = self.get_piece_set(!target_color);
-        let straight_pinners = attackers.rooks | attackers.queens;
-        for pinner_sq in straight_pinners.iter_forward() {
-            let segment = get_straight_segment(target_sq, pinner_sq);
-            if segment & self.occupied == pin_sq | pinner_sq.as_bitboard() {
+        let straight_attackers = attackers.rooks | attackers.queens;
+        for attacker_sq in straight_attackers.iter_forward() {
+            let segment = get_straight_segment(target_sq, attacker_sq);
+            if segment & self.occupied == pinned_sq | attacker_sq.as_bitboard() {
                 return segment;
             }
         }
-        let diag_pinners = attackers.bishops | attackers.queens;
-        for pinner_sq in diag_pinners.iter_forward() {
-            let segment = get_diag_segment(target_sq, pinner_sq);
-            if segment & self.occupied == pin_sq | pinner_sq.as_bitboard() {
+        let diag_attackers = attackers.bishops | attackers.queens;
+        for attacker_sq in diag_attackers.iter_forward() {
+            let segment = get_diag_segment(target_sq, attacker_sq);
+            if segment & self.occupied == pinned_sq | attacker_sq.as_bitboard() {
                 return segment;
             }
         }
         FULL_BOARD
     }
 
-    pub fn is_attacked_by(&self, square: Square, attack_color: Color) -> bool {
+    pub fn is_attacked_by(&self, target_sq: Square, attack_color: Color) -> bool {
         let attackers = self.get_piece_set(attack_color);
-        let straight_pieces = attackers.rooks | attackers.queens;
-        if (self.get_straight_moves(square) & straight_pieces).is_not_empty() {
+        let straight_attackers = attackers.rooks | attackers.queens;
+        for attacker_sq in straight_attackers.iter_forward() {
+            let segment = get_straight_segment(attacker_sq, target_sq);
+            if segment & self.occupied == target_sq.as_bitboard() {
+                return true;
+            }
+        }
+        let diag_attackers = attackers.bishops | attackers.queens;
+        for attacker_sq in diag_attackers.iter_forward() {
+            let segment = get_diag_segment(attacker_sq, target_sq);
+            if segment & self.occupied == target_sq.as_bitboard() {
+                return true;
+            }
+        }
+        if (target_sq.get_knight_moves() & attackers.knights).is_not_empty() {
             return true;
         }
-        let diag_pieces = attackers.bishops | attackers.queens;
-        if (self.get_diag_moves(square) & diag_pieces).is_not_empty() {
+        if (self.get_pawn_attacks(target_sq, !attack_color) & attackers.pawns).is_not_empty() {
             return true;
         }
-        if (square.get_knight_moves() & attackers.knights).is_not_empty() {
-            return true;
-        }
-        if (self.get_pawn_attacks(square, !attack_color) & attackers.pawns).is_not_empty() {
-            return true;
-        }
-        if (square.get_king_moves() & attackers.kings).is_not_empty() {
+        if (target_sq.get_king_moves() & attackers.kings).is_not_empty() {
             return true;
         }
         false
