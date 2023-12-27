@@ -1,3 +1,4 @@
+mod castlerights;
 mod moves;
 use std::io::Empty;
 
@@ -8,7 +9,8 @@ use crate::{
         Color, Figure, Piece,
     },
 };
-use moves::Move;
+use castlerights::CastleRights;
+use moves::{Move, MoveRecord};
 
 const A1: Square = Square::from_coords(Row::new(0), Column::new(0));
 const C1: Square = Square::from_coords(Row::new(0), Column::new(2));
@@ -26,101 +28,6 @@ const G8: Square = Square::from_coords(Row::new(7), Column::new(6));
 const H8: Square = Square::from_coords(Row::new(7), Column::new(7));
 
 pub const DEFAULT_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-struct CastleRights(u8);
-
-impl CastleRights {
-    pub fn new(wk: bool, wq: bool, bk: bool, bq: bool) -> Self {
-        Self(u8::from(wk) + 2 * u8::from(wq) + 4 * u8::from(bk) + 8 * u8::from(bq))
-    }
-
-    pub fn remove_castle_rights(&mut self, color: Color) {
-        match color {
-            Color::White => self.0 &= 0b1100,
-            Color::Black => self.0 &= 0b0011,
-        }
-    }
-
-    pub fn remove_kingside_castle_rights(&mut self, color: Color) {
-        match color {
-            Color::White => self.0 &= 0b1110,
-            Color::Black => self.0 &= 0b1011,
-        }
-    }
-
-    pub fn remove_queenside_castle_rights(&mut self, color: Color) {
-        match color {
-            Color::White => self.0 &= 0b1101,
-            Color::Black => self.0 &= 0b0111,
-        }
-    }
-
-    fn try_from_fen(fen: &str) -> Result<Self, &'static str> {
-        let mut wk = false;
-        let mut wq = false;
-        let mut bk = false;
-        let mut bq = false;
-        for c in fen.chars() {
-            match c {
-                '-' => return Ok(Self(0)),
-                'K' => wk = true,
-                'Q' => wq = true,
-                'k' => bk = true,
-                'q' => bq = true,
-                _ => return Err("invalid char"),
-            }
-        }
-        Ok(Self::new(wk, wq, bk, bq))
-    }
-
-    fn to_fen(self) -> String {
-        let fen = match self.0 {
-            0b0000 => "-",
-            0b0001 => "K",
-            0b0010 => "Q",
-            0b0011 => "KQ",
-            0b0100 => "k",
-            0b0101 => "Kk",
-            0b0110 => "Qk",
-            0b0111 => "KQk",
-            0b1000 => "q",
-            0b1001 => "Kq",
-            0b1010 => "Qq",
-            0b1011 => "KQq",
-            0b1100 => "kq",
-            0b1101 => "Kkq",
-            0b1110 => "Qkq",
-            0b1111 => "KQkq",
-            _ => panic!(),
-        };
-        fen.into()
-    }
-}
-
-#[derive(Debug)]
-pub struct MoveRecord {
-    move_: Move,
-    captured: Option<Piece>,
-    castle_rights: CastleRights,
-    half_move: u16,
-}
-
-impl MoveRecord {
-    fn new(
-        move_: Move,
-        captured: Option<Piece>,
-        castle_rights: CastleRights,
-        half_move: u16,
-    ) -> Self {
-        Self {
-            move_,
-            captured,
-            castle_rights,
-            half_move,
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct MoveIter<'a> {
@@ -177,14 +84,8 @@ impl GameState {
             Move::MovePiece { from, to } => self.move_piece(from, to),
             Move::PromotePawn { from, to, piece } => self.promote_pawn(from, to, piece),
             Move::EnPassant { from, to, ep } => self.move_enpassant(from, to, ep),
-            Move::KingsideCastle => {
-                self.move_kingside_castle();
-                None
-            }
-            Move::QueensideCastle => {
-                self.move_queenside_castle();
-                None
-            }
+            Move::KingsideCastle => self.move_kingside_castle(),
+            Move::QueensideCastle => self.move_queenside_castle(),
         };
         let record = MoveRecord::new(move_, captured, castle_rights, half_moves);
         self.move_list.push(record);
@@ -323,26 +224,26 @@ impl GameState {
         self.board.clear_sq(ep)
     }
 
-    fn move_kingside_castle(&mut self) {
+    fn move_kingside_castle(&mut self) -> Option<Piece> {
         self.half_moves += 1;
         self.castle.remove_castle_rights(self.turn);
         let (king_sq, new_rook_sq, new_king_sq, rook_sq) = match self.turn {
             Color::White => (E1, F1, G1, H1),
             Color::Black => (E8, F8, G8, H8),
         };
-        self.board.move_piece(king_sq, new_king_sq);
         self.board.move_piece(rook_sq, new_rook_sq);
+        self.board.move_piece(king_sq, new_king_sq)
     }
 
-    fn move_queenside_castle(&mut self) {
+    fn move_queenside_castle(&mut self) -> Option<Piece> {
         self.half_moves += 1;
         self.castle.remove_castle_rights(self.turn);
         let (rook_sq, new_king_sq, new_rook_sq, king_sq) = match self.turn {
             Color::White => (A1, C1, D1, E1),
             Color::Black => (A8, C8, D8, E8),
         };
-        self.board.move_piece(king_sq, new_king_sq);
         self.board.move_piece(rook_sq, new_rook_sq);
+        self.board.move_piece(king_sq, new_king_sq)
     }
 
     pub fn try_from_fen(fen: &str) -> Result<Self, &'static str> {
@@ -427,7 +328,7 @@ impl GameState {
         fen
     }
 
-    fn perft(&mut self, depth: u32) -> u64 {
+    fn perft(&mut self, depth: u32) -> u128 {
         if depth == 0 {
             return 1;
         }
