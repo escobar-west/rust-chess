@@ -30,6 +30,13 @@ impl BitBoard {
         self.0 != 0
     }
 
+    fn pop_lsb(&mut self) -> Option<Square> {
+        self.bitscan_forward().map(|lsb| {
+            *self ^= BitBoard::from(lsb);
+            lsb
+        })
+    }
+
     pub const fn bitscan_forward(&self) -> Option<Square> {
         match self.0.trailing_zeros() {
             64 => None,
@@ -44,8 +51,8 @@ impl BitBoard {
         }
     }
 
-    pub fn iter_forward(&self) -> BitBoardFwdIter<'_> {
-        BitBoardFwdIter::new(self)
+    pub fn iter_forward(&self) -> BitBoardFwdIter {
+        BitBoardFwdIter::new(*self)
     }
 
     pub const fn gen_white_pawn_mask(self) -> Self {
@@ -174,6 +181,13 @@ impl BitBoard {
         let lateral_mask = ((self_inner << 1) & NOT_A_FILE) | ((self_inner >> 1) & NOT_H_FILE);
         let screen_mask = lateral_mask | self_inner;
         Self(lateral_mask | (screen_mask << 8) | (screen_mask >> 8))
+    }
+}
+
+impl Iterator for BitBoard {
+    type Item = Square;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.pop_lsb()
     }
 }
 

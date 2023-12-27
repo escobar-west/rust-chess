@@ -88,14 +88,15 @@ impl Board {
         let Some(piece) = self.get_sq(square) else {
             return EMPTY_BOARD;
         };
-        match piece.figure {
-            Figure::Pawn => self.get_pawn_moves(square, piece.color),
-            Figure::Rook => self.get_straight_moves(square),
-            Figure::Knight => square.get_knight_moves(),
-            Figure::Bishop => self.get_diag_moves(square),
-            Figure::Queen => self.get_straight_moves(square) | self.get_diag_moves(square),
-            Figure::King => square.get_king_moves(),
-        }
+        !self.get_color_mask(piece.color)
+            & match piece.figure {
+                Figure::Pawn => self.get_pawn_moves(square, piece.color),
+                Figure::Rook => self.get_straight_moves(square),
+                Figure::Knight => square.get_knight_moves(),
+                Figure::Bishop => self.get_diag_moves(square),
+                Figure::Queen => self.get_straight_moves(square) | self.get_diag_moves(square),
+                Figure::King => square.get_king_moves(),
+            }
     }
 
     pub fn get_safe_squares(&self, player_square: Square, player_color: Color) -> BitBoard {

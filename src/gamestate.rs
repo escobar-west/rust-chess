@@ -98,16 +98,68 @@ impl CastleRights {
     }
 }
 
+#[derive(Debug)]
+pub struct MoveRecord {
+    move_: Move,
+    captured: Option<Piece>,
+    castle_rights: CastleRights,
+    half_move: u16,
+}
+
+impl MoveRecord {
+    fn new(
+        move_: Move,
+        captured: Option<Piece>,
+        castle_rights: CastleRights,
+        half_move: u16,
+    ) -> Self {
+        Self {
+            move_,
+            captured,
+            castle_rights,
+            half_move,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct MoveIter<'a> {
+    from_square: Square,
+    to_squares: BitBoard,
+    game: &'a GameState,
+}
+
+impl<'a> MoveIter<'a> {
+    pub fn new(game: &'a GameState, square: Square) -> Self {
+        Self {
+            from_square: square,
+            to_squares: game.board.get_moves_from_sq(square),
+            game,
+        }
+    }
+}
+
+impl<'a> Iterator for MoveIter<'a> {
+    type Item = Move;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.to_squares.next().map(|to| Move::MovePiece {
+            from: self.from_square,
+            to,
+        })
+    }
+}
+
+#[derive(Debug)]
 pub struct GameState {
     board: Board,
     turn: Color,
     castle: CastleRights,
     ep: Option<Square>,
-    half_moves: u32,
-    full_moves: u32,
+    half_moves: u16,
+    full_moves: u16,
     white_king: Square,
     black_king: Square,
-    move_list: Vec<(Move, Option<Piece>)>,
+    move_list: Vec<MoveRecord>,
 }
 
 impl GameState {
@@ -119,6 +171,8 @@ impl GameState {
     }
 
     fn make_legal_move(&mut self, move_: Move) {
+        let castle_rights = self.castle;
+        let half_moves = self.half_moves;
         let captured = match move_ {
             Move::MovePiece { from, to } => self.move_piece(from, to),
             Move::PromotePawn { from, to, piece } => self.promote_pawn(from, to, piece),
@@ -132,11 +186,86 @@ impl GameState {
                 None
             }
         };
-        self.move_list.push((move_, captured));
+        let record = MoveRecord::new(move_, captured, castle_rights, half_moves);
+        self.move_list.push(record);
         if self.turn == Color::Black {
             self.full_moves += 1;
         }
         self.turn = !self.turn;
+    }
+
+    fn unmake_move(&mut self) {
+        let Some(prev_move) = self.move_list.pop() else {
+            return;
+        };
+        match prev_move.move_ {
+            Move::MovePiece { from, to } => self.unmove_piece(from, to, prev_move.captured),
+            Move::PromotePawn { from, to, piece } => {
+                self.unpromote_pawn(from, to, piece, prev_move.captured)
+            }
+            Move::EnPassant { from, to, ep } => self.unmake_enpassant(from, to, ep),
+            Move::KingsideCastle => self.unmake_kingside_castle(),
+            Move::QueensideCastle => self.unmake_queenside_castle(),
+        }
+        self.castle = prev_move.castle_rights;
+        self.half_moves = prev_move.half_move;
+        if self.turn == Color::White {
+            self.full_moves -= 1;
+        }
+        self.turn = !self.turn;
+    }
+
+    fn unmove_piece(&mut self, from: Square, to: Square, captured: Option<Piece>) {
+        self.board.move_piece(to, from);
+        if let Some(piece) = captured {
+            self.board.set_sq(to, piece);
+        }
+    }
+
+    fn unpromote_pawn(
+        &mut self,
+        from: Square,
+        to: Square,
+        promotion: Piece,
+        captured: Option<Piece>,
+    ) {
+        let pawn = Piece {
+            color: promotion.color,
+            figure: Figure::Pawn,
+        };
+        self.board.set_sq(from, pawn);
+        match captured {
+            Some(captured) => self.board.set_sq(to, captured),
+            None => self.board.clear_sq(to),
+        };
+    }
+
+    fn unmake_enpassant(&mut self, from: Square, to: Square, ep: Square) {
+        self.board.move_piece(to, from);
+        let pawn = Piece {
+            color: self.turn,
+            figure: Figure::Pawn,
+        };
+        self.board.set_sq(ep, pawn);
+        self.ep = Some(ep);
+    }
+
+    fn unmake_kingside_castle(&mut self) {
+        let (king_sq, new_rook_sq, new_king_sq, rook_sq) = match self.turn {
+            Color::White => (E1, F1, G1, H1),
+            Color::Black => (E8, F8, G8, H8),
+        };
+        self.board.move_piece(new_king_sq, king_sq);
+        self.board.move_piece(new_rook_sq, rook_sq);
+    }
+
+    fn unmake_queenside_castle(&mut self) {
+        let (rook_sq, new_king_sq, new_rook_sq, king_sq) = match self.turn {
+            Color::White => (A1, C1, D1, E1),
+            Color::Black => (A8, C8, D8, E8),
+        };
+        self.board.move_piece(new_king_sq, king_sq);
+        self.board.move_piece(new_rook_sq, rook_sq);
     }
 
     fn move_piece(&mut self, from: Square, to: Square) -> Option<Piece> {
@@ -174,6 +303,15 @@ impl GameState {
     }
 
     fn promote_pawn(&mut self, from: Square, to: Square, promotion: Piece) -> Option<Piece> {
+        let (queen_rook, king_rook) = match self.turn {
+            Color::White => (A8, H8),
+            Color::Black => (A1, H1),
+        };
+        match to {
+            f if f == queen_rook => self.castle.remove_queenside_castle_rights(!self.turn),
+            f if f == king_rook => self.castle.remove_kingside_castle_rights(!self.turn),
+            _ => (),
+        }
         self.half_moves = 0;
         self.board.clear_sq(from);
         self.board.set_sq(to, promotion)
@@ -227,8 +365,8 @@ impl GameState {
             Some(coords) => Some(Square::try_from_alg(coords)?),
             None => return Err("Invalid Fen"),
         };
-        let half_moves = fen_iter.next().map(|x| x.parse::<u32>()).unwrap().unwrap();
-        let full_moves = fen_iter.next().map(|x| x.parse::<u32>()).unwrap().unwrap();
+        let half_moves = fen_iter.next().map(|x| x.parse::<u16>()).unwrap().unwrap();
+        let full_moves = fen_iter.next().map(|x| x.parse::<u16>()).unwrap().unwrap();
         let white_king = board
             .get_piece_mask(WHITE_KING)
             .iter_forward()
@@ -249,7 +387,7 @@ impl GameState {
             full_moves,
             white_king,
             black_king,
-            move_list: Vec::new(),
+            move_list: Vec::with_capacity(20),
         })
     }
 
@@ -288,6 +426,24 @@ impl GameState {
 
         fen
     }
+
+    fn perft(&mut self, depth: u32) -> u64 {
+        if depth == 0 {
+            return 1;
+        }
+        let mut perft = 0;
+        let move_list: Vec<Move> = self
+            .board
+            .get_color_mask(self.turn)
+            .flat_map(|square| MoveIter::new(self, square))
+            .collect();
+        for move_ in move_list {
+            self.make_legal_move(move_);
+            perft += self.perft(depth - 1);
+            self.unmake_move();
+        }
+        perft
+    }
 }
 
 impl Default for GameState {
@@ -309,5 +465,12 @@ mod tests {
         assert_eq!(gs.ep, None);
         assert_eq!(gs.half_moves, 0);
         assert_eq!(gs.full_moves, 1);
+    }
+
+    #[test]
+    fn test_perft_3() {
+        let mut gs = GameState::default();
+        let perft = gs.perft(3);
+        assert_eq!(perft, 8902);
     }
 }
