@@ -9,24 +9,40 @@ impl CastleRights {
     }
 
     pub fn remove_castle_rights(&mut self, color: Color) {
-        match color {
-            Color::White => self.0 &= 0b1100,
-            Color::Black => self.0 &= 0b0011,
+        self.0 &= match color {
+            Color::White => 0b1100,
+            Color::Black => 0b0011,
         }
     }
 
     pub fn remove_kingside_castle_rights(&mut self, color: Color) {
-        match color {
-            Color::White => self.0 &= 0b1110,
-            Color::Black => self.0 &= 0b1011,
+        self.0 &= match color {
+            Color::White => 0b1110,
+            Color::Black => 0b1011,
         }
     }
 
     pub fn remove_queenside_castle_rights(&mut self, color: Color) {
-        match color {
-            Color::White => self.0 &= 0b1101,
-            Color::Black => self.0 &= 0b0111,
+        self.0 &= match color {
+            Color::White => 0b1101,
+            Color::Black => 0b0111,
         }
+    }
+
+    pub fn can_castle_kingside(self, color: Color) -> bool {
+        let king_mask = match color {
+            Color::White => 0b0001,
+            Color::Black => 0b0100,
+        };
+        self.0 & king_mask == king_mask
+    }
+
+    pub fn can_castle_queenside(self, color: Color) -> bool {
+        let queen_mask = match color {
+            Color::White => 0b0010,
+            Color::Black => 0b1000,
+        };
+        self.0 & queen_mask == queen_mask
     }
 
     pub fn try_from_fen(fen: &str) -> Result<Self, &'static str> {

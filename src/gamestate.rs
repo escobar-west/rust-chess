@@ -77,6 +77,20 @@ impl GameState {
         }
     }
 
+    fn check_move_legality(&self, move_: Move) -> bool {
+        match move_ {
+            Move::KingsideCastle => self.check_king_castle_legality(),
+            _ => false,
+        }
+    }
+
+    fn check_king_castle_legality(&self) -> bool {
+        if !self.castle.can_castle_kingside(self.turn) {
+            return false;
+        }
+        true
+    }
+
     fn make_legal_move(&mut self, move_: Move) {
         let castle_rights = self.castle;
         let half_moves = self.half_moves;
