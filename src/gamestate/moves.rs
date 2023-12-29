@@ -5,7 +5,15 @@ use crate::{board::Square, pieces::Piece};
 pub enum Move {
     KingsideCastle,
     QueensideCastle,
+    MoveKing {
+        from: Square,
+        to: Square,
+    },
     MovePiece {
+        from: Square,
+        to: Square,
+    },
+    MovePawnTwice {
         from: Square,
         to: Square,
     },

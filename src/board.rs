@@ -51,6 +51,38 @@ impl Board {
         }
     }
 
+    pub fn print_board(&self) {
+        let mut char_board: [char; 64] = ['☐'; 64];
+        for piece in [
+            WHITE_PAWN,
+            WHITE_ROOK,
+            WHITE_KNIGHT,
+            WHITE_BISHOP,
+            WHITE_QUEEN,
+            WHITE_KING,
+            BLACK_PAWN,
+            BLACK_ROOK,
+            BLACK_KNIGHT,
+            BLACK_BISHOP,
+            BLACK_QUEEN,
+            BLACK_KING,
+        ] {
+            let c: char = piece.into();
+            let bb = self.get_piece_mask(piece);
+            for square in bb.iter_forward() {
+                char_board[usize::from(square)] = c;
+            }
+        }
+        let mut out_str = String::new();
+        for i in (0..8).rev() {
+            let offset = 8 * i as usize;
+            let row: String = char_board[offset..offset + 8].iter().collect();
+            out_str.push_str(&row);
+            out_str.push('\n')
+        }
+        println!("{}", out_str);
+    }
+
     pub fn get_color_mask(&self, color: Color) -> BitBoard {
         match color {
             Color::White => self.white_occupied,
@@ -138,6 +170,40 @@ impl Board {
             }
         }
         FULL_BOARD
+    }
+
+    pub fn get_check_stops(&self, target_sq: Square, target_color: Color) -> BitBoard {
+        let mut stop_moves = FULL_BOARD;
+        let attackers = self.get_piece_set(!target_color);
+        let straight_attackers = attackers.rooks | attackers.queens;
+        for attacker_sq in straight_attackers.iter_forward() {
+            let segment = get_straight_segment(target_sq, attacker_sq);
+            if segment & self.occupied == attacker_sq.as_bitboard() {
+                stop_moves &= segment;
+            }
+        }
+        let diag_attackers = attackers.bishops | attackers.queens;
+        for attacker_sq in diag_attackers.iter_forward() {
+            let segment = get_diag_segment(target_sq, attacker_sq);
+            if segment & self.occupied == attacker_sq.as_bitboard() {
+                stop_moves &= segment;
+            }
+        }
+        let knight_moves = target_sq.get_knight_moves();
+        for attacker_sq in attackers.knights.iter_forward() {
+            let attacker_bb = attacker_sq.as_bitboard();
+            if knight_moves & attacker_bb == attacker_bb {
+                stop_moves &= attacker_bb;
+            }
+        }
+        let pawn_moves = self.get_pawn_attacks(target_sq, target_color);
+        for attacker_sq in attackers.pawns.iter_forward() {
+            let attacker_bb = attacker_sq.as_bitboard();
+            if pawn_moves & attacker_bb == attacker_bb {
+                stop_moves &= attacker_bb;
+            }
+        }
+        stop_moves
     }
 
     pub fn is_attacked_by(&self, target_sq: Square, attack_color: Color) -> bool {

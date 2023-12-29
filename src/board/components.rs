@@ -1,4 +1,5 @@
 use super::bitboard::{BitBoard, COLUMNS, KING_MOVES, KNIGHT_MOVES, ROWS, SQUARES};
+use std::fmt;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Row(u8);
@@ -134,5 +135,11 @@ impl From<Square> for u8 {
 impl From<Square> for usize {
     fn from(value: Square) -> Self {
         value.0 as usize
+    }
+}
+
+impl fmt::Display for Square {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.to_alg())
     }
 }

@@ -67,10 +67,10 @@ impl BitBoard {
         Self(mask)
     }
 
-    pub fn print_board(&self) {
-        let mut char_board: [char; 64] = ['.'; 64];
+    pub fn print_board(&self, c: char) {
+        let mut char_board: [char; 64] = ['☐'; 64];
         for square in self.iter_forward() {
-            char_board[usize::from(square)] = 'X';
+            char_board[usize::from(square)] = c;
         }
         let mut out_str = String::new();
         for i in (0..8).rev() {
