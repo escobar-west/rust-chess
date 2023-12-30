@@ -416,10 +416,7 @@ impl GameState {
     }
 
     fn perft(&mut self, depth: u32) -> u128 {
-        self.validate_position();
-        if depth == 0 {
-            return 1;
-        }
+        //self.validate_position();
         let mut perft = 0;
         let move_list: Vec<Move> = self
             .board
@@ -427,6 +424,9 @@ impl GameState {
             .flat_map(|square| MoveIter::new(self, square))
             .filter(|m| self.check_move_legality(*m))
             .collect();
+        if depth == 1 {
+            return move_list.len() as u128;
+        }
         for move_ in move_list {
             self.make_legal_move(move_);
             perft += self.perft(depth - 1);
