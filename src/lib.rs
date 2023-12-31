@@ -6,3 +6,7 @@ mod gamestate;
 mod pieces;
 
 pub use gamestate::GameState;
+use tikv_jemallocator::Jemalloc;
+
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
