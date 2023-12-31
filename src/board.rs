@@ -34,7 +34,7 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn get_piece_mask(&self, piece: Piece) -> BitBoard {
+    pub fn get_pieces(&self, piece: Piece) -> BitBoard {
         match piece {
             WHITE_PAWN => self.white_pieces.pawns,
             WHITE_ROOK => self.white_pieces.rooks,
@@ -51,76 +51,52 @@ impl Board {
         }
     }
 
-    pub fn print_board(&self) {
-        let mut char_board: [char; 64] = ['☐'; 64];
-        for piece in [
-            WHITE_PAWN,
-            WHITE_ROOK,
-            WHITE_KNIGHT,
-            WHITE_BISHOP,
-            WHITE_QUEEN,
-            WHITE_KING,
-            BLACK_PAWN,
-            BLACK_ROOK,
-            BLACK_KNIGHT,
-            BLACK_BISHOP,
-            BLACK_QUEEN,
-            BLACK_KING,
-        ] {
-            let c: char = piece.into();
-            let bb = self.get_piece_mask(piece);
-            for square in bb.iter_forward() {
-                char_board[usize::from(square)] = c;
-            }
-        }
-        let mut out_str = String::new();
-        for i in (0..8).rev() {
-            let offset = 8 * i as usize;
-            let row: String = char_board[offset..offset + 8].iter().collect();
-            out_str.push_str(&row);
-            out_str.push('\n')
-        }
-        println!("{}", out_str);
-    }
-
-    pub fn get_color_mask(&self, color: Color) -> BitBoard {
+    pub fn get_color(&self, color: Color) -> BitBoard {
         match color {
             Color::White => self.white_occupied,
             Color::Black => self.black_occupied,
         }
     }
 
-    pub fn get_sq(&self, square: Square) -> Option<Piece> {
-        self.mailbox.get_sq(square)
+    pub fn get_square(&self, square: Square) -> Option<Piece> {
+        self.mailbox.get_square(square)
     }
 
-    pub fn clear_sq(&mut self, square: Square) -> Option<Piece> {
-        let piece = self.mailbox.clear_sq(square);
+    pub fn clear_square(&mut self, square: Square) -> Option<Piece> {
+        let piece = self.mailbox.clear_square(square);
         if let Some(p) = piece {
-            self.clear_mask_by_piece(square.into(), p)
+            self.clear_by_piece(square.into(), p)
         }
         piece
     }
 
-    pub fn set_sq(&mut self, square: Square, piece: Piece) -> Option<Piece> {
-        let old_piece = self.mailbox.set_sq(square, piece);
+    pub fn set_square(&mut self, square: Square, piece: Piece) -> Option<Piece> {
+        let old_piece = self.mailbox.set_square(square, piece);
         let square_mask: BitBoard = square.into();
         if let Some(old_piece) = old_piece {
-            self.clear_mask_by_piece(square_mask, old_piece)
+            self.clear_by_piece(square_mask, old_piece)
         }
-        self.set_mask_by_piece(square_mask, piece);
+        self.set_by_piece(square_mask, piece);
         old_piece
     }
 
     pub fn move_piece(&mut self, from: Square, to: Square) -> Option<Piece> {
-        self.clear_sq(from).and_then(|p| self.set_sq(to, p))
+        self.clear_square(from).and_then(|p| self.set_square(to, p))
     }
 
-    pub fn get_moves_from_sq(&self, square: Square) -> BitBoard {
-        let Some(piece) = self.get_sq(square) else {
+    pub fn move_piece_no_capture(&mut self, from: Square, to: Square) {
+        if let Some(piece) = self.mailbox.clear_square(from) {
+            let mask = from.as_bitboard() | to.as_bitboard();
+            self.toggle_by_piece(mask, piece);
+            self.mailbox.set_square(to, piece);
+        }
+    }
+
+    pub fn get_moves(&self, square: Square) -> BitBoard {
+        let Some(piece) = self.get_square(square) else {
             return EMPTY_BOARD;
         };
-        !self.get_color_mask(piece.color)
+        !self.get_color(piece.color)
             & match piece.figure {
                 Figure::Pawn => self.get_pawn_moves(square, piece.color),
                 Figure::Rook => self.get_straight_moves(square),
@@ -249,7 +225,7 @@ impl Board {
                 } else {
                     let piece = Piece::try_from(c)?;
                     let square = Square::from_coords(Row::new(row_idx), Column::new(col_idx));
-                    board.set_sq(square, piece);
+                    board.set_square(square, piece);
                     col_idx += 1;
                 }
             }
@@ -264,7 +240,7 @@ impl Board {
             let mut fen_row: String = "".into();
             for col_idx in 0..8u8 {
                 let square = Square::from_coords(Row::new(row_idx), Column::new(col_idx));
-                match self.mailbox.get_sq(square) {
+                match self.mailbox.get_square(square) {
                     Some(p) => {
                         if none_count != 0 {
                             fen_row.push_str(&format!("{}", none_count));
@@ -285,7 +261,39 @@ impl Board {
         fen_row_list.join("/")
     }
 
-    fn get_piece_mask_mut(&mut self, piece: Piece) -> &mut BitBoard {
+    pub fn print_board(&self) {
+        let mut char_board: [char; 64] = ['☐'; 64];
+        for piece in [
+            WHITE_PAWN,
+            WHITE_ROOK,
+            WHITE_KNIGHT,
+            WHITE_BISHOP,
+            WHITE_QUEEN,
+            WHITE_KING,
+            BLACK_PAWN,
+            BLACK_ROOK,
+            BLACK_KNIGHT,
+            BLACK_BISHOP,
+            BLACK_QUEEN,
+            BLACK_KING,
+        ] {
+            let c: char = piece.into();
+            let bb = self.get_pieces(piece);
+            for square in bb.iter_forward() {
+                char_board[usize::from(square)] = c;
+            }
+        }
+        let mut out_str = String::new();
+        for i in (0..8).rev() {
+            let offset = 8 * i as usize;
+            let row: String = char_board[offset..offset + 8].iter().collect();
+            out_str.push_str(&row);
+            out_str.push('\n')
+        }
+        println!("{}", out_str);
+    }
+
+    fn get_pieces_mut(&mut self, piece: Piece) -> &mut BitBoard {
         match piece {
             WHITE_PAWN => &mut self.white_pieces.pawns,
             WHITE_ROOK => &mut self.white_pieces.rooks,
@@ -302,7 +310,7 @@ impl Board {
         }
     }
 
-    fn get_color_mask_mut(&mut self, color: Color) -> &mut BitBoard {
+    fn get_color_mut(&mut self, color: Color) -> &mut BitBoard {
         match color {
             Color::White => &mut self.white_occupied,
             Color::Black => &mut self.black_occupied,
@@ -316,17 +324,23 @@ impl Board {
         }
     }
 
-    fn clear_mask_by_piece(&mut self, mask: BitBoard, piece: Piece) {
+    fn clear_by_piece(&mut self, mask: BitBoard, piece: Piece) {
         let clear_mask = !mask;
-        *self.get_piece_mask_mut(piece) &= clear_mask;
-        *self.get_color_mask_mut(piece.color) &= clear_mask;
+        *self.get_pieces_mut(piece) &= clear_mask;
+        *self.get_color_mut(piece.color) &= clear_mask;
         self.occupied &= clear_mask;
     }
 
-    fn set_mask_by_piece(&mut self, mask: BitBoard, piece: Piece) {
-        *self.get_piece_mask_mut(piece) |= mask;
-        *self.get_color_mask_mut(piece.color) |= mask;
+    fn set_by_piece(&mut self, mask: BitBoard, piece: Piece) {
+        *self.get_pieces_mut(piece) |= mask;
+        *self.get_color_mut(piece.color) |= mask;
         self.occupied |= mask;
+    }
+
+    fn toggle_by_piece(&mut self, mask: BitBoard, piece: Piece) {
+        *self.get_pieces_mut(piece) ^= mask;
+        *self.get_color_mut(piece.color) ^= mask;
+        self.occupied ^= mask;
     }
 
     fn get_pawn_attacks(&self, square: Square, color: Color) -> BitBoard {

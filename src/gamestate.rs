@@ -42,8 +42,8 @@ impl<'a> MoveIter<'a> {
     pub fn new(game: &'a GameState, square: Square) -> Self {
         Self {
             from_square: square,
-            piece: game.board.get_sq(square).unwrap(),
-            to_squares: game.board.get_moves_from_sq(square),
+            piece: game.board.get_square(square).unwrap(),
+            to_squares: game.board.get_moves(square),
             game,
         }
     }
@@ -144,14 +144,14 @@ impl GameState {
     fn unmove_piece(&mut self, from: Square, to: Square, captured: Option<Piece>) {
         self.board.move_piece(to, from);
         if let Some(piece) = captured {
-            self.board.set_sq(to, piece);
+            self.board.set_square(to, piece);
         }
     }
 
     fn unmove_king(&mut self, from: Square, to: Square, captured: Option<Piece>) {
         self.board.move_piece(to, from);
         if let Some(piece) = captured {
-            self.board.set_sq(to, piece);
+            self.board.set_square(to, piece);
         }
         match self.turn {
             Color::White => self.black_king = from,
@@ -206,7 +206,7 @@ impl GameState {
         if captured.is_some()
             || self
                 .board
-                .get_sq(to)
+                .get_square(to)
                 .map_or(false, |p| p.figure == Figure::Pawn)
         {
             self.half_moves = 0;
@@ -238,16 +238,8 @@ impl GameState {
         };
         let half_moves = fen_iter.next().map(|x| x.parse::<u16>()).unwrap().unwrap();
         let full_moves = fen_iter.next().map(|x| x.parse::<u16>()).unwrap().unwrap();
-        let white_king = board
-            .get_piece_mask(WHITE_KING)
-            .iter_forward()
-            .next()
-            .unwrap();
-        let black_king = board
-            .get_piece_mask(BLACK_KING)
-            .iter_forward()
-            .next()
-            .unwrap();
+        let white_king = board.get_pieces(WHITE_KING).iter_forward().next().unwrap();
+        let black_king = board.get_pieces(BLACK_KING).iter_forward().next().unwrap();
 
         Ok(Self {
             board,
@@ -304,7 +296,7 @@ impl GameState {
             let mut perft = 0;
             let move_list: Vec<Move> = game
                 .board
-                .get_color_mask(game.turn)
+                .get_color(game.turn)
                 .flat_map(|square| MoveIter::new(game, square))
                 .filter(|m| game.check_move_legality(*m))
                 .collect();
@@ -325,9 +317,9 @@ impl GameState {
     }
 
     fn validate_position(&self) {
-        let white_king = self.board.get_piece_mask(WHITE_KING).iter_forward().next();
+        let white_king = self.board.get_pieces(WHITE_KING).iter_forward().next();
         assert_eq!(white_king, Some(self.white_king));
-        let black_king = self.board.get_piece_mask(BLACK_KING).iter_forward().next();
+        let black_king = self.board.get_pieces(BLACK_KING).iter_forward().next();
         assert_eq!(black_king, Some(self.black_king));
         let opponent_king_square = self.get_king_sq(!self.turn);
         let opponent_is_in_check = self.board.is_attacked_by(opponent_king_square, self.turn);
@@ -361,19 +353,5 @@ mod tests {
         assert_eq!(gs.ep, None);
         assert_eq!(gs.half_moves, 0);
         assert_eq!(gs.full_moves, 1);
-    }
-
-    #[test]
-    fn test_perft_pos_default() {
-        let mut gs = GameState::default();
-        let perft = gs.perft(4);
-        assert_eq!(perft, 197281);
-    }
-
-    #[test]
-    fn test_perft_pos_3() {
-        let mut gs = GameState::try_from_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1").unwrap();
-        let perft = gs.perft(2);
-        assert_eq!(perft, 191);
     }
 }

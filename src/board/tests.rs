@@ -68,7 +68,7 @@ fn test_default_fen() {
 fn test_clear_and_set_sq() {
     let fen = DEFAULT_FEN;
     let mut board = Board::try_from_fen(fen).unwrap();
-    board.clear_sq(Square::from_alg("a8"));
+    board.clear_square(Square::from_alg("a8"));
 
     let rook_mask = BitBoard::from_alg("a1") | BitBoard::from_alg("h1") | BitBoard::from_alg("h8");
     assert_eq!(
@@ -76,7 +76,7 @@ fn test_clear_and_set_sq() {
         rook_mask
     );
 
-    let piece = board.set_sq(Square::from_alg("h1"), BLACK_QUEEN);
+    let piece = board.set_square(Square::from_alg("h1"), BLACK_QUEEN);
     assert_eq!(piece, Some(WHITE_ROOK));
 
     let rook_mask = BitBoard::from_alg("a1") | BitBoard::from_alg("h8");
@@ -233,31 +233,31 @@ impl Board {
                 == self.white_occupied
         );
         for square in self.white_occupied.iter_forward() {
-            assert_eq!(self.mailbox.get_sq(square).unwrap().color, Color::White);
+            assert_eq!(self.mailbox.get_square(square).unwrap().color, Color::White);
         }
         for square in self.black_occupied.iter_forward() {
-            assert_eq!(self.mailbox.get_sq(square).unwrap().color, Color::Black);
+            assert_eq!(self.mailbox.get_square(square).unwrap().color, Color::Black);
         }
         for square in self.white_pieces.pawns.iter_forward() {
-            assert_eq!(self.mailbox.get_sq(square).unwrap(), WHITE_PAWN);
+            assert_eq!(self.mailbox.get_square(square).unwrap(), WHITE_PAWN);
         }
         for square in self.white_pieces.rooks.iter_forward() {
-            assert_eq!(self.mailbox.get_sq(square).unwrap(), WHITE_ROOK);
+            assert_eq!(self.mailbox.get_square(square).unwrap(), WHITE_ROOK);
         }
         for square in self.white_pieces.knights.iter_forward() {
-            assert_eq!(self.mailbox.get_sq(square).unwrap(), WHITE_KNIGHT);
+            assert_eq!(self.mailbox.get_square(square).unwrap(), WHITE_KNIGHT);
         }
         for square in self.white_pieces.bishops.iter_forward() {
-            assert_eq!(self.mailbox.get_sq(square).unwrap(), WHITE_BISHOP);
+            assert_eq!(self.mailbox.get_square(square).unwrap(), WHITE_BISHOP);
         }
         for square in self.white_pieces.queens.iter_forward() {
-            assert_eq!(self.mailbox.get_sq(square).unwrap(), WHITE_QUEEN);
+            assert_eq!(self.mailbox.get_square(square).unwrap(), WHITE_QUEEN);
         }
         for square in self.white_pieces.kings.iter_forward() {
-            assert_eq!(self.mailbox.get_sq(square).unwrap(), WHITE_KING);
+            assert_eq!(self.mailbox.get_square(square).unwrap(), WHITE_KING);
         }
         for square in (!self.occupied).iter_forward() {
-            assert!(self.mailbox.get_sq(square).is_none());
+            assert!(self.mailbox.get_square(square).is_none());
         }
     }
 }
