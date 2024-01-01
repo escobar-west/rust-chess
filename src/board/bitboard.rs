@@ -22,11 +22,11 @@ impl BitBoard {
         Self(value)
     }
 
-    pub const fn is_empty(&self) -> bool {
+    pub const fn is_empty(self) -> bool {
         self.0 == 0
     }
 
-    pub const fn is_not_empty(&self) -> bool {
+    pub const fn is_not_empty(self) -> bool {
         self.0 != 0
     }
 
@@ -37,22 +37,22 @@ impl BitBoard {
         })
     }
 
-    pub const fn bitscan_forward(&self) -> Option<Square> {
+    pub const fn bitscan_forward(self) -> Option<Square> {
         match self.0.trailing_zeros() {
             64 => None,
             x => Some(Square::new(x as u8)),
         }
     }
 
-    pub const fn bitscan_backward(&self) -> Option<Square> {
+    pub const fn bitscan_backward(self) -> Option<Square> {
         match self.0.leading_zeros() {
             64 => None,
             x => Some(Square::new(63 - x as u8)),
         }
     }
 
-    pub fn iter_forward(&self) -> BitBoardFwdIter {
-        BitBoardFwdIter::new(*self)
+    pub fn iter_forward(self) -> BitBoardFwdIter {
+        BitBoardFwdIter::new(self)
     }
 
     pub const fn gen_white_pawn_mask(self) -> Self {
@@ -67,7 +67,7 @@ impl BitBoard {
         Self(mask)
     }
 
-    pub fn print_board(&self, c: char) {
+    pub fn print_board(self, c: char) {
         let mut char_board: [char; 64] = ['☐'; 64];
         for square in self.iter_forward() {
             char_board[usize::from(square)] = c;

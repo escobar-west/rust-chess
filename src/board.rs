@@ -65,7 +65,7 @@ impl Board {
     pub fn clear_square(&mut self, square: Square) -> Option<Piece> {
         let piece = self.mailbox.clear_square(square);
         if let Some(p) = piece {
-            self.clear_by_piece(square.into(), p)
+            self.clear_bitboards(square.into(), p)
         }
         piece
     }
@@ -74,22 +74,14 @@ impl Board {
         let old_piece = self.mailbox.set_square(square, piece);
         let square_mask: BitBoard = square.into();
         if let Some(old_piece) = old_piece {
-            self.clear_by_piece(square_mask, old_piece)
+            self.clear_bitboards(square_mask, old_piece)
         }
-        self.set_by_piece(square_mask, piece);
+        self.set_bitboards(square_mask, piece);
         old_piece
     }
 
     pub fn move_piece(&mut self, from: Square, to: Square) -> Option<Piece> {
         self.clear_square(from).and_then(|p| self.set_square(to, p))
-    }
-
-    pub fn move_piece_no_capture(&mut self, from: Square, to: Square) {
-        if let Some(piece) = self.mailbox.clear_square(from) {
-            let mask = from.as_bitboard() | to.as_bitboard();
-            self.toggle_by_piece(mask, piece);
-            self.mailbox.set_square(to, piece);
-        }
     }
 
     pub fn get_moves(&self, square: Square) -> BitBoard {
@@ -240,7 +232,7 @@ impl Board {
             let mut fen_row: String = "".into();
             for col_idx in 0..8u8 {
                 let square = Square::from_coords(Row::new(row_idx), Column::new(col_idx));
-                match self.mailbox.get_square(square) {
+                match self.get_square(square) {
                     Some(p) => {
                         if none_count != 0 {
                             fen_row.push_str(&format!("{}", none_count));
@@ -324,23 +316,17 @@ impl Board {
         }
     }
 
-    fn clear_by_piece(&mut self, mask: BitBoard, piece: Piece) {
+    fn clear_bitboards(&mut self, mask: BitBoard, piece: Piece) {
         let clear_mask = !mask;
         *self.get_pieces_mut(piece) &= clear_mask;
         *self.get_color_mut(piece.color) &= clear_mask;
         self.occupied &= clear_mask;
     }
 
-    fn set_by_piece(&mut self, mask: BitBoard, piece: Piece) {
+    fn set_bitboards(&mut self, mask: BitBoard, piece: Piece) {
         *self.get_pieces_mut(piece) |= mask;
         *self.get_color_mut(piece.color) |= mask;
         self.occupied |= mask;
-    }
-
-    fn toggle_by_piece(&mut self, mask: BitBoard, piece: Piece) {
-        *self.get_pieces_mut(piece) ^= mask;
-        *self.get_color_mut(piece.color) ^= mask;
-        self.occupied ^= mask;
     }
 
     fn get_pawn_attacks(&self, square: Square, color: Color) -> BitBoard {
