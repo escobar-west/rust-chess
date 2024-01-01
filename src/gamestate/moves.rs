@@ -25,23 +25,19 @@ pub enum Move {
     MovePiece {
         from: Square,
         to: Square,
-        captured: Option<Piece>,
     },
     MoveKing {
         from: Square,
         to: Square,
-        captured: Option<Piece>,
     },
     MovePawn {
         from: Square,
         to: Square,
-        captured: Option<Piece>,
     },
     PromotePawn {
         from: Square,
         to: Square,
         promotion: Piece,
-        captured: Option<Piece>,
     },
     MovePawnDouble {
         from: Square,
@@ -58,8 +54,8 @@ impl Move {
     pub fn check_move_legality(self, game: &GameState) -> bool {
         use check_move::*;
         match self {
-            Move::MovePiece { from, to, .. } => check_move_piece_legality(game, from, to),
-            Move::MoveKing { from, to, .. } => check_move_king_legality(game, from, to),
+            Move::MovePiece { from, to } => check_move_piece_legality(game, from, to),
+            Move::MoveKing { from, to } => check_move_king_legality(game, from, to),
             _ => unimplemented!(),
         }
     }
@@ -68,12 +64,12 @@ impl Move {
         use make_move::*;
         let castle_rights = game.castle;
         let half_moves = game.half_moves;
-        match self {
-            Move::MovePiece { from, to, .. } => move_piece(game, from, to),
-            Move::MoveKing { from, to, .. } => move_king(game, from, to),
+        let captured = match self {
+            Move::MovePiece { from, to } => move_piece(game, from, to),
+            Move::MoveKing { from, to } => move_king(game, from, to),
             _ => unimplemented!(),
         };
-        let record = MoveRecord::new(self, castle_rights, half_moves);
+        let record = MoveRecord::new(self, captured, castle_rights, half_moves);
         game.move_list.push(record);
         if game.turn == Color::Black {
             game.full_moves += 1;
@@ -81,11 +77,11 @@ impl Move {
         game.turn = !game.turn;
     }
 
-    pub fn unmake_move(self, game: &mut GameState) {
+    pub fn unmake_move(self, game: &mut GameState, captured: Option<Piece>) {
         use unmake_move::*;
         match self {
-            Move::MovePiece { from, to, captured } => unmove_piece(game, from, to, captured),
-            Move::MoveKing { from, to, captured } => unmove_king(game, from, to, captured),
+            Move::MovePiece { from, to } => unmove_piece(game, from, to, captured),
+            Move::MoveKing { from, to } => unmove_king(game, from, to, captured),
             _ => unimplemented!(),
         }
     }
@@ -112,7 +108,7 @@ mod check_move {
 mod make_move {
     use super::*;
 
-    pub fn move_piece(game: &mut GameState, from: Square, to: Square) {
+    pub fn move_piece(game: &mut GameState, from: Square, to: Square) -> Option<Piece> {
         let (queen_rook, king_rook) = match game.turn {
             Color::White => (A1, H1),
             Color::Black => (A8, H8),
@@ -142,9 +138,10 @@ mod make_move {
         } else {
             game.half_moves += 1;
         }
+        captured
     }
 
-    pub fn move_king(game: &mut GameState, from: Square, to: Square) {
+    pub fn move_king(game: &mut GameState, from: Square, to: Square) -> Option<Piece> {
         game.castle.remove_castle_rights(game.turn);
         let (queen_rook, king_rook) = match game.turn {
             Color::White => (A8, H8),
@@ -165,6 +162,7 @@ mod make_move {
         } else {
             game.half_moves += 1;
         }
+        captured
     }
 }
 
@@ -172,19 +170,19 @@ mod unmake_move {
     use super::*;
     pub fn unmove_piece(game: &mut GameState, from: Square, to: Square, captured: Option<Piece>) {
         game.board.move_piece(to, from);
-        if let Some(piece) = captured {
-            game.board.set_square(to, piece);
+        if let Some(captured) = captured {
+            game.board.set_square(to, captured);
         }
     }
 
     pub fn unmove_king(game: &mut GameState, from: Square, to: Square, captured: Option<Piece>) {
         game.board.move_piece(to, from);
-        if let Some(piece) = captured {
-            game.board.set_square(to, piece);
-        }
         match game.turn {
             Color::White => game.black_king = from,
             Color::Black => game.white_king = from,
+        }
+        if let Some(captured) = captured {
+            game.board.set_square(to, captured);
         }
     }
 }
@@ -192,14 +190,21 @@ mod unmake_move {
 #[derive(Debug)]
 pub struct MoveRecord {
     pub move_: Move,
+    pub captured: Option<Piece>,
     pub castle_rights: CastleRights,
     pub half_move: u16,
 }
 
 impl MoveRecord {
-    pub fn new(move_: Move, castle_rights: CastleRights, half_move: u16) -> Self {
+    pub fn new(
+        move_: Move,
+        captured: Option<Piece>,
+        castle_rights: CastleRights,
+        half_move: u16,
+    ) -> Self {
         Self {
             move_,
+            captured,
             castle_rights,
             half_move,
         }

@@ -44,12 +44,10 @@ impl<'a> Iterator for MoveIter<'a> {
             Figure::King => self.to_squares.next().map(|to| Move::MoveKing {
                 from: self.from_square,
                 to,
-                captured: self.game.board.get_square(to),
             }),
             _ => self.to_squares.next().map(|to| Move::MovePiece {
                 from: self.from_square,
                 to,
-                captured: self.game.board.get_square(to),
             }),
         }
     }
@@ -80,7 +78,7 @@ impl GameState {
         let Some(prev_move) = self.move_list.pop() else {
             return;
         };
-        prev_move.move_.unmake_move(self);
+        prev_move.move_.unmake_move(self, prev_move.captured);
         self.castle = prev_move.castle_rights;
         self.half_moves = prev_move.half_move;
         if self.turn == Color::White {
