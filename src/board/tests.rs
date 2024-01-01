@@ -61,7 +61,10 @@ fn test_default_fen() {
     assert_eq!(board.occupied, occ_mask);
 
     let to_fen = board.to_fen();
-    assert_eq!(to_fen, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+    assert_eq!(
+        to_fen.as_ref(),
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+    );
 }
 
 #[test]
@@ -108,13 +111,22 @@ fn test_move_piece() {
     let mut board = Board::try_from_fen(fen).unwrap();
     board.move_piece(Square::new(12), Square::new(28));
     let new_fen = board.to_fen();
-    assert_eq!(new_fen, "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR");
+    assert_eq!(
+        new_fen.as_ref(),
+        "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR"
+    );
     board.move_piece(Square::new(50), Square::new(34));
     let new_fen = board.to_fen();
-    assert_eq!(new_fen, "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR");
+    assert_eq!(
+        new_fen.as_ref(),
+        "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR"
+    );
     board.move_piece(Square::new(0), Square::new(63));
     let new_fen = board.to_fen();
-    assert_eq!(new_fen, "rnbqkbnR/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/1NBQKBNR");
+    assert_eq!(
+        new_fen.as_ref(),
+        "rnbqkbnR/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/1NBQKBNR"
+    );
     board.validate();
 }
 

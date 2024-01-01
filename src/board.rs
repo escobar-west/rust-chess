@@ -233,7 +233,7 @@ impl Board {
         Ok(board)
     }
 
-    pub fn to_fen(&self) -> String {
+    pub fn to_fen(&self) -> Box<str> {
         let mut fen_row_list: Vec<String> = Vec::with_capacity(8);
         for row_idx in (0..8u8).rev() {
             let mut none_count = 0u8;
@@ -258,7 +258,7 @@ impl Board {
             }
             fen_row_list.push(fen_row);
         }
-        fen_row_list.join("/")
+        fen_row_list.join("/").into_boxed_str()
     }
 
     pub fn print_board(&self) {

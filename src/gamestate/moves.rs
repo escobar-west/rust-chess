@@ -30,10 +30,6 @@ pub enum Move {
         from: Square,
         to: Square,
     },
-    MovePawn {
-        from: Square,
-        to: Square,
-    },
     PromotePawn {
         from: Square,
         to: Square,
@@ -51,7 +47,7 @@ pub enum Move {
 }
 
 impl Move {
-    pub fn check_move_legality(self, game: &GameState) -> bool {
+    pub fn _is_legal(self, game: &GameState) -> bool {
         use check_move::*;
         match self {
             Move::MovePiece { from, to } => check_move_piece_legality(game, from, to),
@@ -60,24 +56,16 @@ impl Move {
         }
     }
 
-    pub fn make_move(self, game: &mut GameState) {
+    pub fn _make_move(self, game: &mut GameState) -> Option<Piece> {
         use make_move::*;
-        let castle_rights = game.castle;
-        let half_moves = game.half_moves;
-        let captured = match self {
+        match self {
             Move::MovePiece { from, to } => move_piece(game, from, to),
             Move::MoveKing { from, to } => move_king(game, from, to),
             _ => unimplemented!(),
-        };
-        let record = MoveRecord::new(self, captured, castle_rights, half_moves);
-        game.move_list.push(record);
-        if game.turn == Color::Black {
-            game.full_moves += 1;
         }
-        game.turn = !game.turn;
     }
 
-    pub fn unmake_move(self, game: &mut GameState, captured: Option<Piece>) {
+    pub fn _unmake_move(self, game: &mut GameState, captured: Option<Piece>) {
         use unmake_move::*;
         match self {
             Move::MovePiece { from, to } => unmove_piece(game, from, to, captured),

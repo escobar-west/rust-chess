@@ -90,7 +90,7 @@ impl Square {
         KING_MOVES[usize::from(self)]
     }
 
-    pub fn to_alg(self) -> String {
+    pub fn to_alg(self) -> Box<str> {
         let col = self.0 & 7;
         let row = self.0 >> 3;
         let col_char = char::from_u32(97 + col as u32).unwrap();
@@ -98,7 +98,7 @@ impl Square {
         let mut notation = String::with_capacity(2);
         notation.push(col_char);
         notation.push(row_char);
-        notation
+        notation.into_boxed_str()
     }
 
     pub fn try_from_alg(coords: &str) -> Result<Self, &'static str> {

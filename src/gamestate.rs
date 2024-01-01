@@ -74,11 +74,27 @@ impl GameState {
         }
     }
 
-    fn pop_move(&mut self) {
+    pub fn is_legal(&self, move_: Move) -> bool {
+        move_._is_legal(self)
+    }
+
+    pub fn make_move(&mut self, move_: Move) {
+        let castle_rights = self.castle;
+        let half_moves = self.half_moves;
+        let captured = move_._make_move(self);
+        let record = MoveRecord::new(move_, captured, castle_rights, half_moves);
+        self.move_list.push(record);
+        if self.turn == Color::Black {
+            self.full_moves += 1;
+        }
+        self.turn = !self.turn;
+    }
+
+    pub fn pop_move(&mut self) {
         let Some(prev_move) = self.move_list.pop() else {
             return;
         };
-        prev_move.move_.unmake_move(self, prev_move.captured);
+        prev_move.move_._unmake_move(self, prev_move.captured);
         self.castle = prev_move.castle_rights;
         self.half_moves = prev_move.half_move;
         if self.turn == Color::White {
@@ -125,7 +141,7 @@ impl GameState {
         })
     }
 
-    pub fn to_fen(&self) -> String {
+    pub fn to_fen(&self) -> Box<str> {
         let mut fen = String::with_capacity(25);
 
         // board
@@ -158,7 +174,7 @@ impl GameState {
         // fullmove
         fen.push_str(&self.full_moves.to_string());
 
-        fen
+        fen.into_boxed_str()
     }
 
     pub fn perft(&mut self, depth: u32) -> u128 {
@@ -168,13 +184,13 @@ impl GameState {
                 .board
                 .get_color(game.turn)
                 .flat_map(|square| MoveIter::new(game, square))
-                .filter(|m| m.check_move_legality(game))
+                .filter(|m| game.is_legal(*m))
                 .collect();
             if depth == 1 {
                 return move_list.len() as u128;
             }
             for move_ in move_list {
-                move_.make_move(game);
+                game.make_move(move_);
                 perft += game.perft(depth - 1);
                 game.pop_move();
             }

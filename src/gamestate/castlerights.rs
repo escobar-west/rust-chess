@@ -63,8 +63,8 @@ impl CastleRights {
         Ok(Self::new(wk, wq, bk, bq))
     }
 
-    pub fn to_fen(self) -> String {
-        let fen = match self.0 {
+    pub fn to_fen(self) -> &'static str {
+        match self.0 {
             0b0000 => "-",
             0b0001 => "K",
             0b0010 => "Q",
@@ -82,7 +82,6 @@ impl CastleRights {
             0b1110 => "Qkq",
             0b1111 => "KQkq",
             _ => panic!(),
-        };
-        fen.into()
+        }
     }
 }
