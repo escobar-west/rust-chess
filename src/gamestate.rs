@@ -13,21 +13,6 @@ use crate::{
 use castlerights::CastleRights;
 use moves::{Move, MoveRecord};
 
-const A1: Square = Square::from_coords(Row::new(0), Column::new(0));
-const C1: Square = Square::from_coords(Row::new(0), Column::new(2));
-const D1: Square = Square::from_coords(Row::new(0), Column::new(3));
-const E1: Square = Square::from_coords(Row::new(0), Column::new(4));
-const F1: Square = Square::from_coords(Row::new(0), Column::new(5));
-const G1: Square = Square::from_coords(Row::new(0), Column::new(6));
-const H1: Square = Square::from_coords(Row::new(0), Column::new(7));
-const A8: Square = Square::from_coords(Row::new(7), Column::new(0));
-const C8: Square = Square::from_coords(Row::new(7), Column::new(2));
-const D8: Square = Square::from_coords(Row::new(7), Column::new(3));
-const E8: Square = Square::from_coords(Row::new(7), Column::new(4));
-const F8: Square = Square::from_coords(Row::new(7), Column::new(5));
-const G8: Square = Square::from_coords(Row::new(7), Column::new(6));
-const H8: Square = Square::from_coords(Row::new(7), Column::new(7));
-
 pub const DEFAULT_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 #[derive(Debug)]
@@ -59,10 +44,12 @@ impl<'a> Iterator for MoveIter<'a> {
             Figure::King => self.to_squares.next().map(|to| Move::MoveKing {
                 from: self.from_square,
                 to,
+                captured: self.game.board.get_square(to),
             }),
             _ => self.to_squares.next().map(|to| Move::MovePiece {
                 from: self.from_square,
                 to,
+                captured: self.game.board.get_square(to),
             }),
         }
     }
@@ -89,131 +76,17 @@ impl GameState {
         }
     }
 
-    fn check_move_legality(&self, move_: Move) -> bool {
-        match move_ {
-            Move::MoveKing { from, to } => self.check_king_move_legality(from, to),
-            Move::MovePiece { from, to } => self.check_move_piece_legality(from, to),
-        }
-    }
-
-    fn check_king_move_legality(&self, from: Square, to: Square) -> bool {
-        let to = to.as_bitboard();
-        let safe_mask = self.board.get_safe_squares(from, self.turn);
-        to & safe_mask == to
-    }
-
-    fn check_move_piece_legality(&self, from: Square, to: Square) -> bool {
-        let to = to.as_bitboard();
-        let king_square = self.get_king_sq(self.turn);
-        let pin_mask = self.board.get_pin_mask(from, king_square, self.turn);
-        let stop_check_mask = self.board.get_check_stops(king_square, self.turn);
-        to & pin_mask & stop_check_mask == to
-    }
-
-    fn make_legal_move(&mut self, move_: Move) {
-        let castle_rights = self.castle;
-        let half_moves = self.half_moves;
-        let captured = match move_ {
-            Move::MovePiece { from, to } => self.move_piece(from, to),
-            Move::MoveKing { from, to } => self.move_king(from, to),
-        };
-        let record = MoveRecord::new(move_, captured, castle_rights, half_moves);
-        self.move_list.push(record);
-        if self.turn == Color::Black {
-            self.full_moves += 1;
-        }
-        self.turn = !self.turn;
-    }
-
-    fn unmake_move(&mut self) {
+    fn pop_move(&mut self) {
         let Some(prev_move) = self.move_list.pop() else {
             return;
         };
-        match prev_move.move_ {
-            Move::MovePiece { from, to } => self.unmove_piece(from, to, prev_move.captured),
-            Move::MoveKing { from, to } => self.unmove_king(from, to, prev_move.captured),
-        }
+        prev_move.move_.unmake_move(self);
         self.castle = prev_move.castle_rights;
         self.half_moves = prev_move.half_move;
         if self.turn == Color::White {
             self.full_moves -= 1;
         }
         self.turn = !self.turn;
-    }
-
-    fn unmove_piece(&mut self, from: Square, to: Square, captured: Option<Piece>) {
-        self.board.move_piece(to, from);
-        if let Some(piece) = captured {
-            self.board.set_square(to, piece);
-        }
-    }
-
-    fn unmove_king(&mut self, from: Square, to: Square, captured: Option<Piece>) {
-        self.board.move_piece(to, from);
-        if let Some(piece) = captured {
-            self.board.set_square(to, piece);
-        }
-        match self.turn {
-            Color::White => self.black_king = from,
-            Color::Black => self.white_king = from,
-        }
-    }
-
-    fn move_king(&mut self, from: Square, to: Square) -> Option<Piece> {
-        self.castle.remove_castle_rights(self.turn);
-        let (queen_rook, king_rook) = match self.turn {
-            Color::White => (A8, H8),
-            Color::Black => (A1, H1),
-        };
-        match to {
-            f if f == queen_rook => self.castle.remove_queenside_castle_rights(!self.turn),
-            f if f == king_rook => self.castle.remove_kingside_castle_rights(!self.turn),
-            _ => (),
-        }
-        match self.turn {
-            Color::White => self.white_king = to,
-            Color::Black => self.black_king = to,
-        }
-        let captured = self.board.move_piece(from, to);
-        if captured.is_some() {
-            self.half_moves = 0;
-        } else {
-            self.half_moves += 1;
-        }
-        captured
-    }
-
-    fn move_piece(&mut self, from: Square, to: Square) -> Option<Piece> {
-        let (queen_rook, king_rook) = match self.turn {
-            Color::White => (A1, H1),
-            Color::Black => (A8, H8),
-        };
-        match from {
-            f if f == queen_rook => self.castle.remove_queenside_castle_rights(self.turn),
-            f if f == king_rook => self.castle.remove_kingside_castle_rights(self.turn),
-            _ => (),
-        }
-        let (queen_rook, king_rook) = match self.turn {
-            Color::White => (A8, H8),
-            Color::Black => (A1, H1),
-        };
-        match to {
-            f if f == queen_rook => self.castle.remove_queenside_castle_rights(!self.turn),
-            f if f == king_rook => self.castle.remove_kingside_castle_rights(!self.turn),
-            _ => (),
-        }
-        let captured = self.board.move_piece(from, to);
-        if captured.is_some()
-            || self
-                .board
-                .get_square(to)
-                .map_or(false, |p| p.figure == Figure::Pawn)
-        {
-            self.half_moves = 0;
-        } else {
-            self.half_moves += 1;
-        }
-        captured
     }
 
     pub fn try_from_fen(fen: &str) -> Result<Self, &'static str> {
@@ -292,21 +165,20 @@ impl GameState {
 
     pub fn perft(&mut self, depth: u32) -> u128 {
         fn perft_(game: &mut GameState, depth: u32) -> u128 {
-            //self.validate_position();
             let mut perft = 0;
             let move_list: Vec<Move> = game
                 .board
                 .get_color(game.turn)
                 .flat_map(|square| MoveIter::new(game, square))
-                .filter(|m| game.check_move_legality(*m))
+                .filter(|m| m.check_move_legality(game))
                 .collect();
             if depth == 1 {
                 return move_list.len() as u128;
             }
             for move_ in move_list {
-                game.make_legal_move(move_);
+                move_.make_move(game);
                 perft += game.perft(depth - 1);
-                game.unmake_move();
+                game.pop_move();
             }
             perft
         }
