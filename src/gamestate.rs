@@ -11,44 +11,30 @@ use crate::{
     },
 };
 use castlerights::CastleRights;
-use moves::{Move, MoveRecord};
+use moves::{Move, MoveIter};
 
 pub const DEFAULT_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 #[derive(Debug)]
-pub struct MoveIter<'a> {
-    from_square: Square,
-    to_squares: BitBoard,
-    piece: Piece,
-    game: &'a GameState,
+pub struct MoveRecord {
+    pub move_: Move,
+    pub captured: Option<Piece>,
+    pub castle_rights: CastleRights,
+    pub half_move: u16,
 }
 
-impl<'a> MoveIter<'a> {
-    pub fn new(game: &'a GameState, square: Square) -> Self {
+impl MoveRecord {
+    pub fn new(
+        move_: Move,
+        captured: Option<Piece>,
+        castle_rights: CastleRights,
+        half_move: u16,
+    ) -> Self {
         Self {
-            from_square: square,
-            piece: game.board.get_square(square).unwrap(),
-            to_squares: game.board.get_moves(square),
-            game,
-        }
-    }
-}
-
-impl<'a> Iterator for MoveIter<'a> {
-    type Item = Move;
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.game.turn != self.piece.color {
-            return None;
-        }
-        match self.piece.figure {
-            Figure::King => self.to_squares.next().map(|to| Move::MoveKing {
-                from: self.from_square,
-                to,
-            }),
-            _ => self.to_squares.next().map(|to| Move::MovePiece {
-                from: self.from_square,
-                to,
-            }),
+            move_,
+            captured,
+            castle_rights,
+            half_move,
         }
     }
 }
@@ -105,19 +91,15 @@ impl GameState {
 
     pub fn try_from_fen(fen: &str) -> Result<Self, &'static str> {
         let mut fen_iter = fen.split(' ');
-
         let position_fen = fen_iter.next().ok_or("Empty Fen")?;
         let board = Board::try_from_fen(position_fen)?;
-
         let turn = match fen_iter.next() {
             Some("w") => Color::White,
             Some("b") => Color::Black,
             _ => return Err("Invalid Fen"),
         };
-
         let castle_fen = fen_iter.next().ok_or("Empty Fen")?;
         let castle = CastleRights::try_from_fen(castle_fen)?;
-
         let ep: Option<Square> = match fen_iter.next() {
             Some("-") => None,
             Some(coords) => Some(Square::try_from_alg(coords)?),

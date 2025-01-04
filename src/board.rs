@@ -34,6 +34,10 @@ pub struct Board {
 }
 
 impl Board {
+    pub fn get_occupied(&self) -> BitBoard {
+        self.occupied
+    }
+
     pub fn get_pieces(&self, piece: Piece) -> BitBoard {
         match piece {
             WHITE_PAWN => self.white_pieces.pawns,
@@ -337,23 +341,14 @@ impl Board {
     }
 
     fn get_pawn_moves(&self, square: Square, color: Color) -> BitBoard {
-        const WHITE_PAWN_START: Row = Row::new(1);
-        const BLACK_PAWN_START: Row = Row::new(6);
-        let unoccupied = !self.occupied;
         match color {
             Color::White => {
-                let mut output_mask = unoccupied & (BitBoard::from(square) << 8);
-                if (square.get_row() == WHITE_PAWN_START) & output_mask.is_not_empty() {
-                    output_mask |= (output_mask << 8) & unoccupied;
-                }
+                let mut output_mask = !self.occupied & (BitBoard::from(square) << 8);
                 output_mask |= self.occupied & WHITE_PAWN_ATTACKS[usize::from(square)];
                 output_mask
             }
             Color::Black => {
-                let mut output_mask = unoccupied & (BitBoard::from(square) >> 8);
-                if (square.get_row() == BLACK_PAWN_START) & output_mask.is_not_empty() {
-                    output_mask |= (output_mask >> 8) & unoccupied;
-                }
+                let mut output_mask = !self.occupied & (BitBoard::from(square) >> 8);
                 output_mask |= self.occupied & BLACK_PAWN_ATTACKS[usize::from(square)];
                 output_mask
             }

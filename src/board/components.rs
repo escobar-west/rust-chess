@@ -1,12 +1,13 @@
 use super::bitboard::{BitBoard, COLUMNS, KING_MOVES, KNIGHT_MOVES, ROWS, SQUARES};
 use std::fmt;
+use std::ops::{Add, Sub};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Row(u8);
 
 impl Row {
     pub const fn new(value: u8) -> Self {
-        assert!(value & 7 == value);
+        assert!(value < 8);
         Self(value)
     }
 
@@ -14,8 +15,26 @@ impl Row {
         self.0
     }
 
+    pub const fn is_adjacent(self, other: Self) -> bool {
+        self.0 == other.0 - 1 || self.0 == other.0 + 1
+    }
+
     pub const fn as_bitboard(self) -> BitBoard {
         BitBoard::new(0xff << (8 * self.0))
+    }
+}
+
+impl Add<u8> for Row {
+    type Output = Self;
+    fn add(self, rhs: u8) -> Self::Output {
+        Self::new(self.0 + rhs)
+    }
+}
+
+impl Sub<u8> for Row {
+    type Output = Self;
+    fn sub(self, rhs: u8) -> Self::Output {
+        Self::new(self.0 - rhs)
     }
 }
 
@@ -30,12 +49,16 @@ pub struct Column(u8);
 
 impl Column {
     pub const fn new(value: u8) -> Self {
-        assert!(value & 7 == value);
+        assert!(value < 8);
         Self(value)
     }
 
     pub const fn as_u8(self) -> u8 {
         self.0
+    }
+
+    pub const fn is_adjacent(self, other: Self) -> bool {
+        self.0 == other.0 - 1 || self.0 == other.0 + 1
     }
 
     pub const fn as_bitboard(self) -> BitBoard {
@@ -54,7 +77,7 @@ pub struct Square(u8);
 
 impl Square {
     pub const fn new(value: u8) -> Self {
-        assert!(value & 63 == value);
+        assert!(value < 64);
         Self(value)
     }
 
